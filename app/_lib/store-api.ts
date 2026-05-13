@@ -9,17 +9,7 @@ import type {
 } from "./store-types";
 
 function normalizeStoreApiBaseUrl(rawBaseUrl?: string) {
-  const cleanedBaseUrl = (rawBaseUrl ?? "http://localhost:4000/api/public").replace(/\/$/, "");
-
-  if (cleanedBaseUrl.endsWith("/api/public")) {
-    return cleanedBaseUrl;
-  }
-
-  if (cleanedBaseUrl.endsWith("/api")) {
-    return `${cleanedBaseUrl}/public`;
-  }
-
-  return cleanedBaseUrl;
+  return (rawBaseUrl ?? "http://localhost:4000/api").replace(/\/$/, "");
 }
 
 const STORE_API_BASE_URL = normalizeStoreApiBaseUrl(process.env.NEXT_PUBLIC_LEHENGA_API_URL);
