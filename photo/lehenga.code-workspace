@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../lehenga-admin"
+		},
+		{
+			"path": "../../lehenga-admin-backend"
+		}
+	],
+	"settings": {}
+}
