@@ -14,9 +14,9 @@ import type { StoreCollection, StoreProduct } from "./_lib/store-types";
 
 const faqItems = [
   {
-    question: "How do I browse lehenga collections on this website?",
+    question: "How do I browse lehenga categories on this website?",
     answer:
-      "Use the navigation links or homepage sections to explore collections, jewellery sets, and featured lehengas from the store.",
+      "Use the navigation links or homepage sections to explore categories, jewellery sets, and featured lehengas from the store.",
   },
   {
     question: "Can I place an order without creating an account?",

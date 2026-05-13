@@ -14,6 +14,16 @@ function normalizeStoreApiBaseUrl(rawBaseUrl?: string) {
 
 const STORE_API_BASE_URL = normalizeStoreApiBaseUrl(process.env.NEXT_PUBLIC_LEHENGA_API_URL);
 
+function getStoreApiUrls(path: string) {
+  const primaryUrl = `${STORE_API_BASE_URL}${path}`;
+
+  if (STORE_API_BASE_URL.endsWith("/api")) {
+    return [primaryUrl, `${STORE_API_BASE_URL}/public${path}`];
+  }
+
+  return [primaryUrl];
+}
+
 type ApiCollectionRef = {
   id: string;
   name: string;
@@ -92,23 +102,33 @@ async function storeRequest<T>(path: string, options: RequestOptions = {}): Prom
     headers.set("Authorization", `Bearer ${options.token}`);
   }
 
-  const response = await fetch(`${STORE_API_BASE_URL}${path}`, {
-    method: options.method ?? "GET",
-    headers,
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-    cache: "no-store",
-  });
+  let lastErrorMessage = "Store request failed";
 
-  const rawText = await response.text();
-  const json = rawText
-    ? (JSON.parse(rawText) as { success?: boolean; data?: T; message?: string })
-    : null;
+  for (const url of getStoreApiUrls(path)) {
+    const response = await fetch(url, {
+      method: options.method ?? "GET",
+      headers,
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      cache: "no-store",
+    });
 
-  if (!response.ok) {
-    throw new Error(json?.message ?? "Store request failed");
+    const rawText = await response.text();
+    const json = rawText
+      ? (JSON.parse(rawText) as { success?: boolean; data?: T; message?: string })
+      : null;
+
+    if (response.ok) {
+      return (json?.data ?? json) as T;
+    }
+
+    lastErrorMessage = json?.message ?? "Store request failed";
+
+    if (response.status !== 404) {
+      throw new Error(lastErrorMessage);
+    }
   }
 
-  return (json?.data ?? json) as T;
+  throw new Error(lastErrorMessage);
 }
 
 function getFallbackImage() {

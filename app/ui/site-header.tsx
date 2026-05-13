@@ -12,7 +12,7 @@ import cartIcon from "@/photo/logo/dowload.svg";
 
 const navigationLinks = [
   { label: "New in", href: "/#home" },
-  { label: "Collections", href: "/collections" },
+  { label: "Categories", href: "/collections" },
   { label: "Jewellery", href: "/jewellery" },
   { label: "Shop all", href: "/shop-all" },
 ];
@@ -33,9 +33,10 @@ const menuColumns: MenuColumn[] = [
     title: "",
     items: [
       { label: "New arrival", href: "/shop-all" },
-      { label: "Collections", href: "/collections" },
-      { label: "Bridal collection", href: "/collections" },
-      { label: "Gown collection", href: "/collections" },
+      { label: "All categories", href: "/collections" },
+      { label: "Bridal wear", href: "/collections" },
+      { label: "Groom wear", href: "/collections" },
+      { label: "Bridesmaid edits", href: "/collections" },
     ],
   },
   {
@@ -43,11 +44,11 @@ const menuColumns: MenuColumn[] = [
     items: [{ label: "Jewellery", href: "/jewellery" }],
   },
   {
-    title: "Shop by event",
+    title: "Shop by category",
     items: [
-      { label: "Wedding", muted: true },
-      { label: "Casual", muted: true },
-      { label: "Birthday", muted: true },
+      { label: "Wedding looks", muted: true },
+      { label: "Reception styles", muted: true },
+      { label: "Festive fits", muted: true },
     ],
   },
 ];
@@ -85,10 +86,10 @@ function MenuIcon() {
 
 function MenuPanel() {
   return (
-    <section id="lehenga-mega-menu" className="mega-menu" aria-label="Collections menu">
+    <section id="lehenga-mega-menu" className="mega-menu" aria-label="Categories menu">
       <div className="mega-menu-columns">
         {menuColumns.map((column) => (
-          <div key={column.title || "collections"} className="mega-menu-column">
+          <div key={column.title || "categories"} className="mega-menu-column">
             {column.title ? <h3>{column.title}</h3> : null}
             <ul>
               {column.items.map((item) => (

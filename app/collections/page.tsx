@@ -39,7 +39,7 @@ export default function CollectionsPage() {
           <span className="breadcrumb-sep" aria-hidden="true">
             &gt;
           </span>
-          <span>Collections</span>
+          <span>Categories</span>
         </div>
 
         {collections.map((collection) => {
@@ -53,7 +53,7 @@ export default function CollectionsPage() {
                   <h2>{collection.name}</h2>
                   <p>
                     {lehengaCount} lehengas · {jewelleryCount} jewellery
-                    {collection.isFeatured ? " · Featured collection" : ""}
+                    {collection.isFeatured ? " · Featured category" : ""}
                   </p>
                 </div>
                 <span>{collection.products.length} styles</span>
@@ -69,7 +69,7 @@ export default function CollectionsPage() {
                 </div>
               ) : (
                 <div className="cart-empty-state">
-                  <p>No lehengas or jewellery have been added to this collection yet.</p>
+                  <p>No lehengas or jewellery have been added to this category yet.</p>
                 </div>
               )}
             </section>
@@ -78,7 +78,7 @@ export default function CollectionsPage() {
 
         {collections.length === 0 ? (
           <div className="cart-empty-state">
-            <p>No collections are available right now.</p>
+            <p>No categories are available right now.</p>
           </div>
         ) : null}
       </section>

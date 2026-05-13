@@ -16,7 +16,7 @@ function formatCurrency(value?: number) {
 function getProductSpecs(product: StoreProduct) {
   const specs: Array<{ label: string; value: string }> = [];
 
-  if (product.collectionName) specs.push({ label: "Collection", value: product.collectionName });
+  if (product.collectionName) specs.push({ label: "Category", value: product.collectionName });
   if (product.designer) specs.push({ label: "Designer", value: product.designer });
   if (product.typeLabel) specs.push({ label: "Type", value: product.typeLabel.replaceAll("_", " ") });
   if (product.color) specs.push({ label: "Color", value: product.color });
