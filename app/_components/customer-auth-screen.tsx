@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 
+import { StoreBreadcrumb } from "@/app/_components/store-breadcrumb";
 import { useCustomerAuth } from "@/app/_components/customer-auth-provider";
 import { fetchMyOrders, loginCustomer, signupCustomer } from "@/app/_lib/store-api";
 import type { StoreOrder } from "@/app/_lib/store-types";
@@ -13,9 +14,27 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+function formatMoney(value: string | number | undefined | null) {
+  return Number(value ?? 0).toLocaleString("en-IN");
+}
+
+function formatAddress(order: StoreOrder) {
+  const addressParts = [
+    order.pickupLocation?.addressLine1,
+    order.pickupLocation?.addressLine2,
+    order.pickupLocation?.city,
+    order.pickupLocation?.state,
+    order.pickupLocation?.postalCode,
+    order.pickupLocation?.country,
+  ].filter(Boolean);
+
+  return addressParts.join(", ");
+}
+
 export function CustomerAuthScreen({ mode }: { mode: "login" | "signup" }) {
   const { customer, token, isLoading, isLoggedIn, login, logout } = useCustomerAuth();
   const [orders, setOrders] = useState<StoreOrder[]>([]);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -105,13 +124,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "signup" }) {
 
   return (
     <section className="store-auth-shell">
-      <div className="shopall-breadcrumb" aria-label="Breadcrumb">
-        <span className="breadcrumb-muted">Home</span>
-        <span className="breadcrumb-sep" aria-hidden="true">
-          &gt;
-        </span>
-        <span>{pageLabel}</span>
-      </div>
+      <StoreBreadcrumb items={[{ label: "Home", href: "/#home" }, { label: pageLabel }]} />
 
       <div className="store-auth-panels">
         <section className="store-auth-hero">
@@ -233,8 +246,94 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "signup" }) {
                   <p>
                     {formatDate(order.rentalStartDate)} to {formatDate(order.rentalEndDate)}
                   </p>
-                  <p>Total: RS {Number(order.totalAmount).toLocaleString("en-IN")}</p>
+                  <p>Total: RS {formatMoney(order.totalAmount)}</p>
                 </div>
+                <div className="store-order-actions">
+                  <button
+                    type="button"
+                    className="cart-secondary-button"
+                    onClick={() =>
+                      setExpandedOrderId((current) => (current === order.id ? null : order.id))
+                    }
+                  >
+                    {expandedOrderId === order.id ? "Hide" : "View"}
+                  </button>
+                </div>
+                {expandedOrderId === order.id ? (
+                  <div className="store-order-details">
+                    <div className="store-order-detail-grid">
+                      <div>
+                        <span>Subtotal</span>
+                        <p>RS {formatMoney(order.subtotalAmount)}</p>
+                      </div>
+                      <div>
+                        <span>Security deposit</span>
+                        <p>RS {formatMoney(order.securityDeposit)}</p>
+                      </div>
+                      <div>
+                        <span>Placed on</span>
+                        <p>{order.createdAt ? formatDate(order.createdAt) : "N/A"}</p>
+                      </div>
+                      <div>
+                        <span>Customer WhatsApp</span>
+                        <p>{order.customer?.phone ?? customer?.phone ?? "N/A"}</p>
+                      </div>
+                      <div>
+                        <span>Pickup location</span>
+                        <p>{order.pickupLocation?.name ?? "N/A"}</p>
+                      </div>
+                      <div>
+                        <span>Pickup contact</span>
+                        <p>{order.pickupLocation?.phone ?? "N/A"}</p>
+                      </div>
+                    </div>
+
+                    {formatAddress(order) ? (
+                      <div className="store-order-detail-block">
+                        <span>Pickup address</span>
+                        <p>{formatAddress(order)}</p>
+                      </div>
+                    ) : null}
+
+                    {order.pickupLocation?.pickupNotes ? (
+                      <div className="store-order-detail-block">
+                        <span>Pickup notes</span>
+                        <p>{order.pickupLocation.pickupNotes}</p>
+                      </div>
+                    ) : null}
+
+                    {order.specialInstructions ? (
+                      <div className="store-order-detail-block">
+                        <span>Special instructions</span>
+                        <p>{order.specialInstructions}</p>
+                      </div>
+                    ) : null}
+
+                    <div className="store-order-detail-block">
+                      <span>Order items</span>
+                      <div className="store-order-item-list">
+                        {order.items.map((item) => (
+                          <article key={item.id} className="store-order-item">
+                            <div>
+                              <h4>{item.productNameSnapshot}</h4>
+                              <p>
+                                {item.itemType}
+                                {item.sizeLabelSnapshot ? ` · Size ${item.sizeLabelSnapshot}` : ""}
+                              </p>
+                            </div>
+                            <div>
+                              <p>Qty: {item.quantity}</p>
+                              <p>Days: {item.rentalDays ?? "N/A"}</p>
+                              <p>Rate: RS {formatMoney(item.pricePerDay)}</p>
+                              <p>Deposit: RS {formatMoney(item.depositAmount)}</p>
+                              <p>Line total: RS {formatMoney(item.lineTotal)}</p>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </article>
             ))}
           </div>

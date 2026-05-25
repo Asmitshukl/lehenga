@@ -4,6 +4,7 @@ import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import { type FormEvent, useMemo, useState } from "react";
 
+import { StoreBreadcrumb } from "../_components/store-breadcrumb";
 import { useCart } from "../_components/cart-provider";
 import { useCustomerAuth } from "../_components/customer-auth-provider";
 import { createOrder } from "../_lib/store-api";
@@ -29,7 +30,6 @@ export default function CartPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [form, setForm] = useState({
     customerName: customer?.firstName ?? "",
-    customerEmail: customer?.email ?? "",
     rentalStartDate: "",
     rentalEndDate: "",
     specialInstructions: "",
@@ -64,7 +64,6 @@ export default function CartPage() {
       await createOrder(
         {
           customerName: form.customerName || customer?.firstName,
-          customerEmail: form.customerEmail || customer?.email || undefined,
           rentalStartDate: form.rentalStartDate,
           rentalEndDate: form.rentalEndDate,
           specialInstructions: form.specialInstructions || undefined,
@@ -89,7 +88,6 @@ export default function CartPage() {
       clearCart();
       setForm({
         customerName: customer?.firstName ?? "",
-        customerEmail: customer?.email ?? "",
         rentalStartDate: "",
         rentalEndDate: "",
         specialInstructions: "",
@@ -107,13 +105,7 @@ export default function CartPage() {
       <SiteHeader />
 
       <section className="shopall-section">
-        <div className="shopall-breadcrumb" aria-label="Breadcrumb">
-          <span className="breadcrumb-muted">Home</span>
-          <span className="breadcrumb-sep" aria-hidden="true">
-            &gt;
-          </span>
-          <span>Cart</span>
-        </div>
+        <StoreBreadcrumb items={[{ label: "Home", href: "/#home" }, { label: "Cart" }]} />
 
         <div className="cart-layout">
           <div className="cart-items-panel">
@@ -149,7 +141,7 @@ export default function CartPage() {
                     <div className="cart-item-copy">
                       <h3>{item.name}</h3>
                       <p>RS {item.rentalPricePerDay.toLocaleString("en-IN")}/night</p>
-                      {item.availableSizes.length > 0 ? (
+                      {item.availableSizes.length > 1 ? (
                         <label className="cart-field">
                           <span>Size</span>
                           <select
@@ -166,7 +158,7 @@ export default function CartPage() {
                           </select>
                         </label>
                       ) : (
-                        <p>{item.kind === "JEWELLERY" ? "Jewellery item" : "Mock preview item"}</p>
+                        <p>{item.kind === "JEWELLERY" ? "Jewellery item" : "Free Size"}</p>
                       )}
                     </div>
                     <div className="cart-item-actions">
@@ -229,11 +221,10 @@ export default function CartPage() {
                   />
                 </label>
                 <label className="cart-field">
-                  <span>Email</span>
+                  <span>WhatsApp number</span>
                   <input
-                    type="email"
-                    value={form.customerEmail}
-                    onChange={(event) => setForm((current) => ({ ...current, customerEmail: event.target.value }))}
+                    value={customer?.phone ?? ""}
+                    readOnly
                   />
                 </label>
                 <label className="cart-field">

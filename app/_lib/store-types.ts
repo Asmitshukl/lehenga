@@ -22,9 +22,9 @@ export type StoreProduct = {
   rentalPricePerDay: number;
   shortDescription?: string;
   description?: string;
-  collectionId?: string;
-  collectionName?: string;
-  collectionSlug?: string;
+  categoryId?: string;
+  categoryName?: string;
+  categorySlug?: string;
   designer?: string;
   color?: string;
   fabric?: string;
@@ -43,7 +43,7 @@ export type StoreProduct = {
   isMock?: boolean;
 };
 
-export type StoreCollection = {
+export type StoreCategory = {
   id: string;
   name: string;
   slug: string;
@@ -86,15 +86,39 @@ export type StoreOrder = {
   paymentStatus: string;
   rentalStartDate: string;
   rentalEndDate: string;
+  pickupDate?: string | null;
+  returnDate?: string | null;
   subtotalAmount: string;
   securityDeposit: string;
   totalAmount: string;
+  specialInstructions?: string | null;
+  createdAt?: string;
+  customer?: {
+    firstName: string;
+    lastName?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  };
+  pickupLocation?: {
+    name: string;
+    phone?: string | null;
+    addressLine1?: string | null;
+    addressLine2?: string | null;
+    city?: string | null;
+    state?: string | null;
+    postalCode?: string | null;
+    country?: string | null;
+    pickupNotes?: string | null;
+  };
   items: Array<{
     id: string;
     itemType: ProductType;
     productNameSnapshot: string;
     sizeLabelSnapshot?: string | null;
     quantity: number;
+    pricePerDay?: string;
+    rentalDays?: number;
     lineTotal: string;
+    depositAmount?: string;
   }>;
 };

@@ -6,13 +6,13 @@ import type { StoreProduct } from "@/app/_lib/store-types";
 import { SiteFooter } from "@/app/ui/site-footer";
 import { SiteHeader } from "@/app/ui/site-header";
 
-function prioritizeCollectionMatches(products: StoreProduct[], currentProduct: StoreProduct) {
+function prioritizeCategoryMatches(products: StoreProduct[], currentProduct: StoreProduct) {
   return [...products].sort((left, right) => {
-    const leftMatchesCollection = left.collectionId && left.collectionId === currentProduct.collectionId ? 1 : 0;
-    const rightMatchesCollection = right.collectionId && right.collectionId === currentProduct.collectionId ? 1 : 0;
+    const leftMatchesCategory = left.categoryId && left.categoryId === currentProduct.categoryId ? 1 : 0;
+    const rightMatchesCategory = right.categoryId && right.categoryId === currentProduct.categoryId ? 1 : 0;
 
-    if (leftMatchesCollection !== rightMatchesCollection) {
-      return rightMatchesCollection - leftMatchesCollection;
+    if (leftMatchesCategory !== rightMatchesCategory) {
+      return rightMatchesCategory - leftMatchesCategory;
     }
 
     const leftTime = left.createdAt ? new Date(left.createdAt).getTime() : 0;
@@ -38,12 +38,12 @@ export default async function LehengaDetailPage({
     notFound();
   }
 
-  const relatedLehengas = prioritizeCollectionMatches(
+  const relatedLehengas = prioritizeCategoryMatches(
     lehengas.filter((lehenga) => lehenga.id !== product.id),
     product,
   ).slice(0, 4);
 
-  const pairedJewellery = prioritizeCollectionMatches(jewellery, product).slice(0, 4);
+  const pairedJewellery = prioritizeCategoryMatches(jewellery, product).slice(0, 4);
 
   return (
     <main className="lehenga-page">

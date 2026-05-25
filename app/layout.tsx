@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { CartProvider } from "./_components/cart-provider";
 import { CustomerAuthProvider } from "./_components/customer-auth-provider";
+import { FloatingWhatsApp } from "./ui/floating-whatsapp";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,7 +18,10 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased" data-scroll-behavior="smooth">
       <body className="min-h-full flex flex-col">
         <CustomerAuthProvider>
-          <CartProvider>{children}</CartProvider>
+          <CartProvider>
+            {children}
+            <FloatingWhatsApp />
+          </CartProvider>
         </CustomerAuthProvider>
       </body>
     </html>

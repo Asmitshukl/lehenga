@@ -1,8 +1,10 @@
 import Link from "next/link";
 
+import { StoreBreadcrumb } from "./store-breadcrumb";
+import { ProductGallery } from "./product-gallery";
 import { ProductDetailActions } from "./product-detail-actions";
+import { StoreFaqSection, StorePromoBanner } from "./store-marketing-sections";
 import { StoreProductCard } from "./store-product-card";
-import { StoreProductImage } from "./store-product-image";
 import type { StoreProduct } from "../_lib/store-types";
 
 function formatCurrency(value?: number) {
@@ -16,7 +18,7 @@ function formatCurrency(value?: number) {
 function getProductSpecs(product: StoreProduct) {
   const specs: Array<{ label: string; value: string }> = [];
 
-  if (product.collectionName) specs.push({ label: "Category", value: product.collectionName });
+  if (product.categoryName) specs.push({ label: "Category", value: product.categoryName });
   if (product.designer) specs.push({ label: "Designer", value: product.designer });
   if (product.typeLabel) specs.push({ label: "Type", value: product.typeLabel.replaceAll("_", " ") });
   if (product.color) specs.push({ label: "Color", value: product.color });
@@ -35,6 +37,14 @@ function getProductSpecs(product: StoreProduct) {
   return specs.filter((spec) => spec.value.trim().length > 0);
 }
 
+function getAboutNarrative(product: StoreProduct) {
+  return (
+    product.description ??
+    product.shortDescription ??
+    `${product.name} is curated for statement occasions with a polished silhouette, detailed finish, and a rental-first fit for celebrations.`
+  );
+}
+
 export function StoreProductDetail({
   product,
   listingHref,
@@ -49,137 +59,132 @@ export function StoreProductDetail({
   pairedJewellery?: StoreProduct[];
 }) {
   const specs = getProductSpecs(product);
-  const title = product.kind === "LEHENGA" ? "Lehenga" : "Jewellery";
+  const aboutNarrative = getAboutNarrative(product);
 
   return (
     <section className="product-detail-page">
       <div className="product-detail-content">
-        <div className="shopall-breadcrumb" aria-label="Breadcrumb">
-            <Link href="/#home" className="breadcrumb-muted">
-              Home
-            </Link>
-            <span className="breadcrumb-sep" aria-hidden="true">
-              &gt;
-            </span>
-            <Link href={listingHref} className="breadcrumb-muted">
-              {listingLabel}
-            </Link>
-            <span className="breadcrumb-sep" aria-hidden="true">
-              &gt;
-            </span>
-            <span>{product.name}</span>
+        <StoreBreadcrumb
+          items={[
+            { label: "Home", href: "/#home" },
+            { label: listingLabel, href: listingHref },
+            { label: product.name },
+          ]}
+        />
+
+        <div className="product-detail-layout">
+          <ProductGallery key={product.id} productId={product.id} productName={product.name} images={product.images} />
+
+          <div className="product-detail-copy">
+            <div className="product-detail-copy-inner">
+              <h1>{product.name}</h1>
+              {product.shortDescription ? <p className="product-detail-summary">{product.shortDescription}</p> : null}
+            </div>
+
+            <ProductDetailActions product={product} />
           </div>
+        </div>
 
-          <div className="product-detail-layout">
-            <div className="product-detail-gallery">
-              <div className="product-detail-primary-image">
-                <StoreProductImage image={product.image} name={product.name} className="product-detail-image" />
-              </div>
-
-              {product.images.length > 1 ? (
-                <div className="product-detail-thumbnail-grid">
-                  {product.images.slice(1).map((image, index) => (
-                    <div key={`${product.id}-${index}`} className="product-detail-thumbnail">
-                      <StoreProductImage
-                        image={image.url}
-                        name={image.altText ?? `${product.name} view ${index + 2}`}
-                        className="product-detail-thumbnail-image"
-                      />
+        <section className="product-detail-about-card">
+          <div className="product-detail-about-copy">
+            <h2>About this item</h2>
+            <p>{aboutNarrative}</p>
+            {specs.length > 0 ? (
+              <div className="product-detail-about-grid">
+                <dl>
+                  {specs.map((spec) => (
+                    <div key={spec.label} className="product-detail-spec-row">
+                      <dt>{spec.label}</dt>
+                      <dd>{spec.value}</dd>
                     </div>
                   ))}
-                </div>
-              ) : null}
+                </dl>
+                <button type="button" className="product-detail-view-more">
+                  View more
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        {product.kind === "LEHENGA" && relatedLehengas.length > 0 ? (
+          <section className="product-detail-recommendation-section">
+            <div className="section-row">
+              <div>
+                <h2>You may also like</h2>
+                <p>More lehengas curated for a similar mood.</p>
+              </div>
+              <Link href="/shop-all" className="discover-button">
+                View all lehengas
+              </Link>
             </div>
 
-            <div className="product-detail-copy">
-              <p className="product-detail-kicker">{title}</p>
-              <h1>{product.name}</h1>
-              <p className="product-detail-price">RS {product.rentalPricePerDay.toLocaleString("en-IN")}/night</p>
+            <div className="product-grid-shell">
+              <div className="product-grid product-grid-detail">
+                {relatedLehengas.map((relatedProduct) => (
+                  <StoreProductCard
+                    key={`related-${relatedProduct.kind}-${relatedProduct.id}`}
+                    product={relatedProduct}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
 
-              {product.shortDescription ? <p className="product-detail-summary">{product.shortDescription}</p> : null}
-              {product.description ? <p className="product-detail-description">{product.description}</p> : null}
+        {product.kind === "LEHENGA" && pairedJewellery.length > 0 ? (
+          <section className="product-detail-recommendation-section">
+            <div className="section-row">
+              <div>
+                <h2>Pair it with</h2>
+                <p>Jewellery picks that complement this lehenga.</p>
+              </div>
+              <Link href="/jewellery" className="discover-button">
+                Browse jewellery
+              </Link>
+            </div>
 
-              <ProductDetailActions product={product} />
+            <div className="product-grid-shell">
+              <div className="product-grid product-grid-detail">
+                {pairedJewellery.map((jewelleryProduct) => (
+                  <StoreProductCard
+                    key={`paired-${jewelleryProduct.kind}-${jewelleryProduct.id}`}
+                    product={jewelleryProduct}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
 
-              {product.kind === "LEHENGA" && product.sizes.length > 0 ? (
-                <div className="product-detail-size-list">
-                  <h2>Available sizes</h2>
-                  <div className="product-detail-chip-row">
-                    {product.sizes.map((size) => (
-                      <span key={size.id} className="product-detail-chip">
-                        {size.sizeLabel} · {size.quantityAvailable} left
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {specs.length > 0 ? (
-                <div className="product-detail-specs">
-                  <h2>Product details</h2>
-                  <dl>
-                    {specs.map((spec) => (
-                      <div key={spec.label} className="product-detail-spec-row">
-                        <dt>{spec.label}</dt>
-                        <dd>{spec.value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                </div>
-              ) : null}
+        <StorePromoBanner />
+        <section className="product-detail-review-section">
+          <div className="product-detail-review-card">
+            <h2>Customer Reviews</h2>
+            <div className="product-detail-review-stars" aria-hidden="true">
+              <span>☆</span>
+              <span>☆</span>
+              <span>☆</span>
+              <span>☆</span>
+              <span>☆</span>
+            </div>
+            <textarea
+              className="product-detail-review-input"
+              placeholder="Write your review"
+              rows={4}
+            />
+            <div className="product-detail-review-actions">
+              <button type="button" className="product-detail-secondary-button is-compact">
+                View more
+              </button>
+              <button type="button" className="product-detail-primary-button is-compact">
+                Submit
+              </button>
             </div>
           </div>
-
-          {product.kind === "LEHENGA" && relatedLehengas.length > 0 ? (
-            <section className="product-detail-recommendation-section">
-              <div className="section-row">
-                <div>
-                  <h2>You may also like</h2>
-                  <p>More lehengas curated for a similar mood.</p>
-                </div>
-                <Link href="/shop-all" className="discover-button">
-                  View all lehengas
-                </Link>
-              </div>
-
-              <div className="product-grid-shell">
-                <div className="product-grid product-grid-detail">
-                  {relatedLehengas.map((relatedProduct) => (
-                    <StoreProductCard
-                      key={`related-${relatedProduct.kind}-${relatedProduct.id}`}
-                      product={relatedProduct}
-                    />
-                  ))}
-                </div>
-              </div>
-            </section>
-          ) : null}
-
-          {product.kind === "LEHENGA" && pairedJewellery.length > 0 ? (
-            <section className="product-detail-recommendation-section">
-              <div className="section-row">
-                <div>
-                  <h2>Pair it with</h2>
-                  <p>Jewellery picks that complement this lehenga.</p>
-                </div>
-                <Link href="/jewellery" className="discover-button">
-                  Browse jewellery
-                </Link>
-              </div>
-
-              <div className="product-grid-shell">
-                <div className="product-grid product-grid-detail">
-                  {pairedJewellery.map((jewelleryProduct) => (
-                    <StoreProductCard
-                      key={`paired-${jewelleryProduct.kind}-${jewelleryProduct.id}`}
-                      product={jewelleryProduct}
-                    />
-                  ))}
-                </div>
-              </div>
-            </section>
-          ) : null}
-        </div>
-      </section>
+        </section>
+        <StoreFaqSection />
+      </div>
+    </section>
   );
 }

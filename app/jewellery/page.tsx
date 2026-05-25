@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { StoreBreadcrumb } from "@/app/_components/store-breadcrumb";
 import { StoreProductCard } from "@/app/_components/store-product-card";
 import { fetchJewelleryProducts } from "@/app/_lib/store-api";
 import type { StoreProduct } from "@/app/_lib/store-types";
@@ -34,13 +35,7 @@ export default function JewelleryPage() {
       <SiteHeader />
 
       <section className="shopall-section">
-        <div className="shopall-breadcrumb" aria-label="Breadcrumb">
-          <span className="breadcrumb-muted">Home</span>
-          <span className="breadcrumb-sep" aria-hidden="true">
-            &gt;
-          </span>
-          <span>Jewellery</span>
-        </div>
+        <StoreBreadcrumb items={[{ label: "Home", href: "/#home" }, { label: "Jewellery" }]} />
 
         <div className="product-grid-shell">
           <div className="product-grid">

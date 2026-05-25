@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { StoreBreadcrumb } from "@/app/_components/store-breadcrumb";
 import { StoreProductCard } from "@/app/_components/store-product-card";
 import { SiteFooter } from "@/app/ui/site-footer";
 import { SiteHeader } from "@/app/ui/site-header";
@@ -35,13 +36,7 @@ export default function ShopAllPage() {
       <SiteHeader />
 
       <section className="shopall-section">
-        <div className="shopall-breadcrumb" aria-label="Breadcrumb">
-          <span className="breadcrumb-muted">Home</span>
-          <span className="breadcrumb-sep" aria-hidden="true">
-            &gt;
-          </span>
-          <span>Shop All</span>
-        </div>
+        <StoreBreadcrumb items={[{ label: "Home", href: "/#home" }, { label: "Shop All" }]} />
 
         <div className="product-grid-shell">
           <div className="product-grid">

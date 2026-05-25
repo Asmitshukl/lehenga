@@ -3,28 +3,38 @@ import type {
   CustomerAuthResponse,
   CustomerProfile,
   ProductType,
-  StoreCollection,
+  StoreCategory,
   StoreOrder,
   StoreProduct,
 } from "./store-types";
 
 function normalizeStoreApiBaseUrl(rawBaseUrl?: string) {
-  return (rawBaseUrl ?? "http://localhost:4000/api").replace(/\/$/, "");
+  return (rawBaseUrl ?? "http://localhost:5000/api").replace(/\/$/, "");
 }
 
 const STORE_API_BASE_URL = normalizeStoreApiBaseUrl(process.env.NEXT_PUBLIC_LEHENGA_API_URL);
 
 function getStoreApiUrls(path: string) {
-  const primaryUrl = `${STORE_API_BASE_URL}${path}`;
+  const candidates = new Set<string>();
+  const pushBaseVariants = (baseUrl: string) => {
+    candidates.add(`${baseUrl}${path}`);
 
-  if (STORE_API_BASE_URL.endsWith("/api")) {
-    return [primaryUrl, `${STORE_API_BASE_URL}/public${path}`];
+    if (baseUrl.endsWith("/api")) {
+      candidates.add(`${baseUrl}/public${path}`);
+    }
+  };
+
+  pushBaseVariants(STORE_API_BASE_URL);
+
+  if (!process.env.NEXT_PUBLIC_LEHENGA_API_URL) {
+    pushBaseVariants("http://localhost:5000/api");
+    pushBaseVariants("http://localhost:4000/api");
   }
 
-  return [primaryUrl];
+  return [...candidates];
 }
 
-type ApiCollectionRef = {
+type ApiCategoryRef = {
   id: string;
   name: string;
   slug: string;
@@ -45,7 +55,7 @@ type ApiLehenga = {
   securityDeposit?: string | number | null;
   originalPrice?: string | number | null;
   minimumRentalDays?: number | null;
-  collection?: ApiCollectionRef | null;
+  category?: ApiCategoryRef | null;
   images: Array<{ imageUrl: string; altText?: string | null }>;
   sizes: Array<{
     id: string;
@@ -73,11 +83,11 @@ type ApiJewellery = {
   originalPrice?: string | number | null;
   minimumRentalDays?: number | null;
   stockQuantity?: number | null;
-  collection?: ApiCollectionRef | null;
+  category?: ApiCategoryRef | null;
   images: Array<{ imageUrl: string; altText?: string | null }>;
 };
 
-type ApiCollection = {
+type ApiCategory = {
   id: string;
   name: string;
   slug: string;
@@ -150,9 +160,9 @@ export function normalizeLehenga(item: ApiLehenga): StoreProduct {
     rentalPricePerDay: Number(item.rentalPricePerDay),
     shortDescription: item.shortDescription ?? undefined,
     description: item.description ?? undefined,
-    collectionId: item.collection?.id,
-    collectionName: item.collection?.name ?? undefined,
-    collectionSlug: item.collection?.slug ?? undefined,
+    categoryId: item.category?.id,
+    categoryName: item.category?.name ?? undefined,
+    categorySlug: item.category?.slug ?? undefined,
     designer: item.designer ?? undefined,
     color: item.color ?? undefined,
     fabric: item.fabric ?? undefined,
@@ -187,9 +197,9 @@ export function normalizeJewellery(item: ApiJewellery): StoreProduct {
     rentalPricePerDay: Number(item.rentalPricePerDay),
     shortDescription: item.shortDescription ?? undefined,
     description: item.description ?? undefined,
-    collectionId: item.collection?.id,
-    collectionName: item.collection?.name ?? undefined,
-    collectionSlug: item.collection?.slug ?? undefined,
+    categoryId: item.category?.id,
+    categoryName: item.category?.name ?? undefined,
+    categorySlug: item.category?.slug ?? undefined,
     color: item.color ?? undefined,
     occasion: item.occasion ?? undefined,
     material: item.material ?? undefined,
@@ -259,20 +269,20 @@ export async function fetchJewelleryBySlug(slug: string): Promise<StoreProduct |
   }
 }
 
-export async function fetchCollections(limit?: number): Promise<StoreCollection[]> {
+export async function fetchCategories(limit?: number): Promise<StoreCategory[]> {
   try {
     const query = limit ? `?limit=${limit}` : "";
-    const collections = await storeRequest<ApiCollection[]>(`/collections${query}`);
+    const categories = await storeRequest<ApiCategory[]>(`/categories${query}`);
 
-    return collections.map((collection) => ({
-      id: collection.id,
-      name: collection.name,
-      slug: collection.slug,
-      isFeatured: collection.isFeatured ?? false,
-      description: collection.description ?? undefined,
+    return categories.map((category) => ({
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      isFeatured: category.isFeatured ?? false,
+      description: category.description ?? undefined,
       products: dedupeProducts([
-        ...collection.lehengas.map(normalizeLehenga),
-        ...collection.jewelleryItems.map(normalizeJewellery),
+        ...category.lehengas.map(normalizeLehenga),
+        ...category.jewelleryItems.map(normalizeJewellery),
       ]),
     }));
   } catch {
@@ -280,7 +290,7 @@ export async function fetchCollections(limit?: number): Promise<StoreCollection[
   }
 }
 
-export async function fetchFeaturedCollections(limit?: number): Promise<StoreCollection[]> {
+export async function fetchFeaturedCategories(limit?: number): Promise<StoreCategory[]> {
   try {
     const params = new URLSearchParams({
       featured: "true",
@@ -290,18 +300,18 @@ export async function fetchFeaturedCollections(limit?: number): Promise<StoreCol
       params.set("limit", String(limit));
     }
 
-    const collections = await storeRequest<ApiCollection[]>(`/collections?${params.toString()}`);
+    const categories = await storeRequest<ApiCategory[]>(`/categories?${params.toString()}`);
 
-    return collections
-      .map((collection) => ({
-        id: collection.id,
-        name: collection.name,
-        slug: collection.slug,
-        isFeatured: collection.isFeatured ?? false,
-        description: collection.description ?? undefined,
+    return categories
+      .map((category) => ({
+        id: category.id,
+        name: category.name,
+        slug: category.slug,
+        isFeatured: category.isFeatured ?? false,
+        description: category.description ?? undefined,
         products: dedupeProducts([
-          ...collection.lehengas.map(normalizeLehenga),
-          ...collection.jewelleryItems.map(normalizeJewellery),
+          ...category.lehengas.map(normalizeLehenga),
+          ...category.jewelleryItems.map(normalizeJewellery),
         ]),
       }));
   } catch {

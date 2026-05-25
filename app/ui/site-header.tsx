@@ -12,8 +12,7 @@ import cartIcon from "@/photo/logo/dowload.svg";
 
 const navigationLinks = [
   { label: "New in", href: "/#home" },
-  { label: "Categories", href: "/collections" },
-  { label: "Jewellery", href: "/jewellery" },
+  { label: "Collections", href: "/categories" },
   { label: "Shop all", href: "/shop-all" },
 ];
 
@@ -33,10 +32,10 @@ const menuColumns: MenuColumn[] = [
     title: "",
     items: [
       { label: "New arrival", href: "/shop-all" },
-      { label: "All categories", href: "/collections" },
-      { label: "Bridal wear", href: "/collections" },
-      { label: "Groom wear", href: "/collections" },
-      { label: "Bridesmaid edits", href: "/collections" },
+      { label: "All categories", href: "/categories" },
+      { label: "Bridal wear", href: "/categories" },
+      { label: "Semi bridal", href: "/categories" },
+      { label: "Gowns", href: "/categories" },
     ],
   },
   {
@@ -170,12 +169,13 @@ export function SiteHeader({
 
   const links = useMemo(() => navigationLinks, []);
   const accountLabel = customer ? customer.firstName : "Account";
+  const isOverlay = variant === "overlay";
 
   return (
     <>
       <header
         className={
-          variant === "overlay"
+          isOverlay
             ? `lehenga-header is-overlay${isScrolled ? " is-scrolled" : ""}`
             : "lehenga-header"
         }
@@ -183,7 +183,7 @@ export function SiteHeader({
         <nav className="lehenga-nav" aria-label="Primary">
           <div className="lehenga-nav-links">
             {links.map((link) => (
-              <Link key={link.label} href={link.href} className={link.label === "Shop all" ? "is-muted" : undefined}>
+              <Link key={link.label} href={link.href}>
                 {link.label}
               </Link>
             ))}
