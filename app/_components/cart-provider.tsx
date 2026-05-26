@@ -13,7 +13,15 @@ let lastCartSnapshot: CartItem[] = EMPTY_CART;
 type CartContextValue = {
   items: CartItem[];
   itemCount: number;
-  addItem: (product: StoreProduct, selectedSizeId?: string) => void;
+  addItem: (
+    product: StoreProduct,
+    selectedSizeId?: string,
+    options?: {
+      rentalStartDate?: string;
+      rentalEndDate?: string;
+      measurements?: CartItem["measurements"];
+    },
+  ) => void;
   removeItem: (productId: string, kind: CartItem["kind"], selectedSizeId?: string) => void;
   updateQuantity: (
     productId: string,
@@ -26,6 +34,19 @@ type CartContextValue = {
     kind: CartItem["kind"],
     previousSizeId: string | undefined,
     selectedSizeId: string,
+  ) => void;
+  updateDates: (
+    productId: string,
+    kind: CartItem["kind"],
+    selectedSizeId: string | undefined,
+    rentalStartDate?: string,
+    rentalEndDate?: string,
+  ) => void;
+  updateMeasurements: (
+    productId: string,
+    kind: CartItem["kind"],
+    selectedSizeId: string | undefined,
+    measurements?: CartItem["measurements"],
   ) => void;
   clearCart: () => void;
 };
@@ -78,6 +99,7 @@ function readInitialCart() {
         name: item.name,
         image: item.image ?? "",
         rentalPricePerDay: item.rentalPricePerDay,
+        securityDeposit: typeof item.securityDeposit === "number" ? item.securityDeposit : undefined,
         quantity: Math.max(1, item.quantity),
         availableSizes: item.availableSizes,
         ...(typeof item.selectedSizeId === "string" ? { selectedSizeId: item.selectedSizeId } : {}),
@@ -86,6 +108,9 @@ function readInitialCart() {
               selectedSizeLabel: item.selectedSizeLabel,
             }
           : {}),
+        ...(typeof item.rentalStartDate === "string" ? { rentalStartDate: item.rentalStartDate } : {}),
+        ...(typeof item.rentalEndDate === "string" ? { rentalEndDate: item.rentalEndDate } : {}),
+        ...(item.measurements && typeof item.measurements === "object" ? { measurements: item.measurements } : {}),
         ...(item.isMock === true ? { isMock: true } : {}),
       });
     }
@@ -155,7 +180,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return {
       items,
       itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
-      addItem: (product, selectedSizeId) => {
+      addItem: (product, selectedSizeId, options) => {
         if (product.isMock) {
           return;
         }
@@ -184,10 +209,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
               name: product.name,
               image: product.image,
               rentalPricePerDay: product.rentalPricePerDay,
+              securityDeposit: product.securityDeposit,
               quantity: 1,
               selectedSizeId: defaultSize?.id,
               selectedSizeLabel: defaultSize?.sizeLabel,
               availableSizes: product.sizes,
+              rentalStartDate: options?.rentalStartDate,
+              rentalEndDate: options?.rentalEndDate,
+              measurements: options?.measurements,
             },
           ];
         });
@@ -226,6 +255,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
               selectedSizeLabel: nextSize?.sizeLabel,
             };
           }),
+        );
+      },
+      updateDates: (productId, kind, selectedSizeId, rentalStartDate, rentalEndDate) => {
+        updateStoredCart((current) =>
+          current.map((item) =>
+            isSameCartLine(item, productId, kind, selectedSizeId)
+              ? { ...item, rentalStartDate, rentalEndDate }
+              : item,
+          ),
+        );
+      },
+      updateMeasurements: (productId, kind, selectedSizeId, measurements) => {
+        updateStoredCart((current) =>
+          current.map((item) =>
+            isSameCartLine(item, productId, kind, selectedSizeId) ? { ...item, measurements } : item,
+          ),
         );
       },
       clearCart: () => writeCart([]),

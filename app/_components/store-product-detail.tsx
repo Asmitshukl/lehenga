@@ -3,6 +3,7 @@ import Link from "next/link";
 import { StoreBreadcrumb } from "./store-breadcrumb";
 import { ProductGallery } from "./product-gallery";
 import { ProductDetailActions } from "./product-detail-actions";
+import { ProductReviewForm } from "./product-review-form";
 import { StoreFaqSection, StorePromoBanner } from "./store-marketing-sections";
 import { StoreProductCard } from "./store-product-card";
 import type { StoreProduct } from "../_lib/store-types";
@@ -78,6 +79,22 @@ export function StoreProductDetail({
           <div className="product-detail-copy">
             <div className="product-detail-copy-inner">
               <h1>{product.name}</h1>
+              {product.reviews && product.reviews.length > 0 ? (
+                <div className="product-detail-inline-reviews">
+                  {product.reviews.slice(0, 2).map((review) => (
+                    <article key={review.id} className="product-detail-inline-review">
+                      <div className="product-detail-inline-review-head">
+                        <strong>
+                          {review.customer.firstName}
+                          {review.customer.lastName ? ` ${review.customer.lastName}` : ""}
+                        </strong>
+                        <span>{"★".repeat(review.rating)}</span>
+                      </div>
+                      <p>{review.comment}</p>
+                    </article>
+                  ))}
+                </div>
+              ) : null}
               {product.shortDescription ? <p className="product-detail-summary">{product.shortDescription}</p> : null}
             </div>
 
@@ -159,29 +176,7 @@ export function StoreProductDetail({
 
         <StorePromoBanner />
         <section className="product-detail-review-section">
-          <div className="product-detail-review-card">
-            <h2>Customer Reviews</h2>
-            <div className="product-detail-review-stars" aria-hidden="true">
-              <span>☆</span>
-              <span>☆</span>
-              <span>☆</span>
-              <span>☆</span>
-              <span>☆</span>
-            </div>
-            <textarea
-              className="product-detail-review-input"
-              placeholder="Write your review"
-              rows={4}
-            />
-            <div className="product-detail-review-actions">
-              <button type="button" className="product-detail-secondary-button is-compact">
-                View more
-              </button>
-              <button type="button" className="product-detail-primary-button is-compact">
-                Submit
-              </button>
-            </div>
-          </div>
+          <ProductReviewForm product={product} />
         </section>
         <StoreFaqSection />
       </div>

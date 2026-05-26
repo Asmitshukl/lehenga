@@ -13,6 +13,17 @@ export type ProductImage = {
   altText?: string;
 };
 
+export type ProductReview = {
+  id: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+  customer: {
+    firstName: string;
+    lastName?: string | null;
+  };
+};
+
 export type StoreProduct = {
   id: string;
   slug: string;
@@ -40,6 +51,7 @@ export type StoreProduct = {
   image: string | StaticImageData;
   images: ProductImage[];
   sizes: ProductSize[];
+  reviews?: ProductReview[];
   isMock?: boolean;
 };
 
@@ -59,10 +71,21 @@ export type CartItem = {
   name: string;
   image: string | StaticImageData;
   rentalPricePerDay: number;
+  securityDeposit?: number;
   quantity: number;
   selectedSizeId?: string;
   selectedSizeLabel?: string;
   availableSizes: ProductSize[];
+  rentalStartDate?: string;
+  rentalEndDate?: string;
+  measurements?: {
+    upper?: string;
+    chest?: string;
+    waist?: string;
+    armHole?: string;
+    mori?: string;
+    notes?: string;
+  };
   isMock?: boolean;
 };
 
@@ -84,6 +107,7 @@ export type StoreOrder = {
   orderNumber: string;
   status: string;
   paymentStatus: string;
+  paymentMethod?: string;
   rentalStartDate: string;
   rentalEndDate: string;
   pickupDate?: string | null;
@@ -91,6 +115,11 @@ export type StoreOrder = {
   subtotalAmount: string;
   securityDeposit: string;
   totalAmount: string;
+  amountPaid?: string;
+  amountDueAtPickup?: string;
+  depositRefundStatus?: string;
+  depositRefundedAmount?: string;
+  depositRefundedAt?: string | null;
   specialInstructions?: string | null;
   createdAt?: string;
   customer?: {
@@ -116,9 +145,42 @@ export type StoreOrder = {
     productNameSnapshot: string;
     sizeLabelSnapshot?: string | null;
     quantity: number;
+    rentalStartDate?: string;
+    rentalEndDate?: string;
     pricePerDay?: string;
     rentalDays?: number;
     lineTotal: string;
     depositAmount?: string;
   }>;
+};
+
+export type OrderPreview = {
+  rentalStartDate: string;
+  rentalEndDate: string;
+  subtotalAmount: number;
+  securityDeposit: number;
+  totalAmount: number;
+  items: Array<{
+    itemType: ProductType;
+    productNameSnapshot: string;
+    quantity: number;
+    rentalStartDate: string;
+    rentalEndDate: string;
+    rentalDays: number;
+    lineTotal: number;
+    depositAmount: number;
+    sizeLabelSnapshot?: string;
+  }>;
+};
+
+export type CheckoutOrderResponse = {
+  order: StoreOrder;
+  razorpayOrder?: {
+    id: string;
+    amount: number;
+    currency: string;
+    keyId: string;
+    name: string;
+    description: string;
+  };
 };

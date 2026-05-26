@@ -1,7 +1,9 @@
 import { mockProducts } from "./mock-products";
 import type {
+  CheckoutOrderResponse,
   CustomerAuthResponse,
   CustomerProfile,
+  OrderPreview,
   ProductType,
   StoreCategory,
   StoreOrder,
@@ -56,6 +58,16 @@ type ApiLehenga = {
   originalPrice?: string | number | null;
   minimumRentalDays?: number | null;
   category?: ApiCategoryRef | null;
+  reviews?: Array<{
+    id: string;
+    rating: number;
+    comment: string;
+    createdAt: string;
+    customer: {
+      firstName: string;
+      lastName?: string | null;
+    };
+  }>;
   images: Array<{ imageUrl: string; altText?: string | null }>;
   sizes: Array<{
     id: string;
@@ -84,6 +96,16 @@ type ApiJewellery = {
   minimumRentalDays?: number | null;
   stockQuantity?: number | null;
   category?: ApiCategoryRef | null;
+  reviews?: Array<{
+    id: string;
+    rating: number;
+    comment: string;
+    createdAt: string;
+    customer: {
+      firstName: string;
+      lastName?: string | null;
+    };
+  }>;
   images: Array<{ imageUrl: string; altText?: string | null }>;
 };
 
@@ -145,6 +167,30 @@ function getFallbackImage() {
   return mockProducts[0]?.image ?? "";
 }
 
+function normalizeReviews(
+  reviews?: Array<{
+    id: string;
+    rating: number;
+    comment: string;
+    createdAt: string;
+    customer: {
+      firstName: string;
+      lastName?: string | null;
+    };
+  }>,
+) {
+  return reviews?.map((review) => ({
+    id: review.id,
+    rating: review.rating,
+    comment: review.comment,
+    createdAt: review.createdAt,
+    customer: {
+      firstName: review.customer.firstName,
+      lastName: review.customer.lastName ?? undefined,
+    },
+  }));
+}
+
 export function normalizeLehenga(item: ApiLehenga): StoreProduct {
   const images = item.images.map((image) => ({
     url: image.imageUrl,
@@ -174,6 +220,7 @@ export function normalizeLehenga(item: ApiLehenga): StoreProduct {
       item.originalPrice !== null && item.originalPrice !== undefined ? Number(item.originalPrice) : undefined,
     image: images[0]?.url ?? getFallbackImage(),
     images: images.length > 0 ? images : [{ url: getFallbackImage(), altText: item.name }],
+    reviews: normalizeReviews(item.reviews),
     sizes: item.sizes.map((size) => ({
       id: size.id,
       sizeLabel: size.sizeLabel,
@@ -214,6 +261,7 @@ export function normalizeJewellery(item: ApiJewellery): StoreProduct {
     stockQuantity: item.stockQuantity ?? undefined,
     image: images[0]?.url ?? getFallbackImage(),
     images: images.length > 0 ? images : [{ url: getFallbackImage(), altText: item.name }],
+    reviews: normalizeReviews(item.reviews),
     sizes: [],
   };
 }
@@ -372,8 +420,7 @@ export async function createOrder(
   payload: {
     customerName?: string;
     customerEmail?: string;
-    rentalStartDate: string;
-    rentalEndDate: string;
+    paymentMethod: "ONLINE" | "PICKUP";
     specialInstructions?: string;
     items: Array<
       | {
@@ -381,17 +428,105 @@ export async function createOrder(
           lehengaId: string;
           lehengaSizeId?: string;
           quantity: number;
+          rentalStartDate: string;
+          rentalEndDate: string;
+          measurements?: {
+            upper?: string;
+            chest?: string;
+            waist?: string;
+            armHole?: string;
+            mori?: string;
+            notes?: string;
+          };
         }
       | {
           itemType: Extract<ProductType, "JEWELLERY">;
           jewelleryId: string;
           quantity: number;
+          rentalStartDate: string;
+          rentalEndDate: string;
         }
     >;
   },
   token: string,
 ) {
-  return storeRequest<StoreOrder>("/orders", {
+  return storeRequest<CheckoutOrderResponse>("/orders", {
+    method: "POST",
+    body: payload,
+    token,
+  });
+}
+
+export async function previewOrder(
+  payload: {
+    items: Array<
+      | {
+          itemType: Extract<ProductType, "LEHENGA">;
+          lehengaId: string;
+          lehengaSizeId?: string;
+          quantity: number;
+          rentalStartDate: string;
+          rentalEndDate: string;
+          measurements?: {
+            upper?: string;
+            chest?: string;
+            waist?: string;
+            armHole?: string;
+            mori?: string;
+            notes?: string;
+          };
+        }
+      | {
+          itemType: Extract<ProductType, "JEWELLERY">;
+          jewelleryId: string;
+          quantity: number;
+          rentalStartDate: string;
+          rentalEndDate: string;
+        }
+    >;
+  },
+  token: string,
+) {
+  return storeRequest<OrderPreview>("/orders/preview", {
+    method: "POST",
+    body: payload,
+    token,
+  });
+}
+
+export async function verifyRazorpayPayment(
+  payload: {
+    orderId: string;
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+  },
+  token: string,
+) {
+  return storeRequest<StoreOrder>("/payments/razorpay/verify", {
+    method: "POST",
+    body: payload,
+    token,
+  });
+}
+
+export async function submitProductReview(
+  payload:
+    | {
+        itemType: Extract<ProductType, "LEHENGA">;
+        lehengaId: string;
+        rating: number;
+        comment: string;
+      }
+    | {
+        itemType: Extract<ProductType, "JEWELLERY">;
+        jewelleryId: string;
+        rating: number;
+        comment: string;
+      },
+  token: string,
+) {
+  return storeRequest("/reviews", {
     method: "POST",
     body: payload,
     token,

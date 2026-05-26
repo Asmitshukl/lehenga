@@ -2,103 +2,59 @@
 
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
-import { type FormEvent, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { StoreBreadcrumb } from "../_components/store-breadcrumb";
 import { useCart } from "../_components/cart-provider";
 import { useCustomerAuth } from "../_components/customer-auth-provider";
-import { createOrder } from "../_lib/store-api";
 import { SiteFooter } from "../ui/site-footer";
 import { SiteHeader } from "../ui/site-header";
 
 function ProductImage({ image, name }: { image: string | StaticImageData; name: string }) {
   if (typeof image === "string") {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={image} alt={name} className="product-card-image" />
-    );
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={image} alt={name} className="product-card-image" />;
   }
 
   return <Image src={image} alt={name} className="product-card-image" />;
 }
 
-export default function CartPage() {
-  const { items, removeItem, updateQuantity, updateSize, clearCart } = useCart();
-  const { customer, token, isLoggedIn } = useCustomerAuth();
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    customerName: customer?.firstName ?? "",
-    rentalStartDate: "",
-    rentalEndDate: "",
-    specialInstructions: "",
-  });
-
-  const subtotal = useMemo(
-    () => items.reduce((sum, item) => sum + item.rentalPricePerDay * item.quantity, 0),
-    [items],
-  );
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSubmitting(true);
-    setError(null);
-    setSuccessMessage(null);
-
-    const liveItems = items.filter((item) => !item.isMock);
-
-    if (liveItems.length === 0) {
-      setError("Add at least one live item before placing an order.");
-      setSubmitting(false);
-      return;
-    }
-
-    if (!token) {
-      setError("Please log in before placing your order.");
-      setSubmitting(false);
-      return;
-    }
-
-    try {
-      await createOrder(
-        {
-          customerName: form.customerName || customer?.firstName,
-          rentalStartDate: form.rentalStartDate,
-          rentalEndDate: form.rentalEndDate,
-          specialInstructions: form.specialInstructions || undefined,
-          items: liveItems.map((item) =>
-            item.kind === "LEHENGA"
-              ? {
-                  itemType: item.kind,
-                  lehengaId: item.productId,
-                  lehengaSizeId: item.selectedSizeId,
-                  quantity: item.quantity,
-                }
-              : {
-                  itemType: item.kind,
-                  jewelleryId: item.productId,
-                  quantity: item.quantity,
-                },
-          ),
-        },
-        token,
-      );
-
-      clearCart();
-      setForm({
-        customerName: customer?.firstName ?? "",
-        rentalStartDate: "",
-        rentalEndDate: "",
-        specialInstructions: "",
-      });
-      setSuccessMessage("Your order has been placed successfully.");
-    } catch (submissionError) {
-      setError(submissionError instanceof Error ? submissionError.message : "Failed to place order");
-    } finally {
-      setSubmitting(false);
-    }
+function getRentalDays(startDate?: string, endDate?: string) {
+  if (!startDate || !endDate) {
+    return 0;
   }
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const diff = end.getTime() - start.getTime();
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || diff < 0) {
+    return 0;
+  }
+
+  return Math.floor(diff / (24 * 60 * 60 * 1000)) + 1;
+}
+
+export default function CartPage() {
+  const { items, removeItem, updateQuantity, updateSize, updateDates, clearCart } = useCart();
+  const { isLoggedIn } = useCustomerAuth();
+
+  const totals = useMemo(() => {
+    return items.reduce(
+      (summary, item) => {
+        const rentalDays = getRentalDays(item.rentalStartDate, item.rentalEndDate);
+        const lineRentalTotal = item.rentalPricePerDay * item.quantity * rentalDays;
+        const lineDepositTotal = (item.securityDeposit ?? 0) * item.quantity;
+
+        return {
+          subtotal: summary.subtotal + lineRentalTotal,
+          depositTotal: summary.depositTotal + lineDepositTotal,
+          grandTotal: summary.grandTotal + lineRentalTotal + lineDepositTotal,
+        };
+      },
+      { subtotal: 0, depositTotal: 0, grandTotal: 0 },
+    );
+  }, [items]);
 
   return (
     <main className="lehenga-page">
@@ -130,64 +86,113 @@ export default function CartPage() {
               </div>
             ) : (
               <div className="cart-items-list">
-                {items.map((item) => (
-                  <article
-                    key={`${item.kind}-${item.productId}-${item.selectedSizeId ?? "default"}`}
-                    className="cart-item-card"
-                  >
-                    <div className="product-card-image-wrap cart-item-media">
-                      <ProductImage image={item.image} name={item.name} />
-                    </div>
-                    <div className="cart-item-copy">
-                      <h3>{item.name}</h3>
-                      <p>RS {item.rentalPricePerDay.toLocaleString("en-IN")}/night</p>
-                      {item.availableSizes.length > 1 ? (
+                {items.map((item) => {
+                  const rentalDays = getRentalDays(item.rentalStartDate, item.rentalEndDate);
+                  const lineRentalTotal = item.rentalPricePerDay * item.quantity * rentalDays;
+                  const lineDepositTotal = (item.securityDeposit ?? 0) * item.quantity;
+
+                  return (
+                    <article
+                      key={`${item.kind}-${item.productId}-${item.selectedSizeId ?? "default"}`}
+                      className="cart-item-card"
+                    >
+                      <div className="product-card-image-wrap cart-item-media">
+                        <ProductImage image={item.image} name={item.name} />
+                      </div>
+                      <div className="cart-item-copy">
+                        <h3>{item.name}</h3>
+                        <p>RS {item.rentalPricePerDay.toLocaleString("en-IN")}/night</p>
+                        {item.securityDeposit ? <p>Deposit: RS {item.securityDeposit.toLocaleString("en-IN")}</p> : null}
+                        {item.availableSizes.length > 1 ? (
+                          <label className="cart-field">
+                            <span>Size</span>
+                            <select
+                              value={item.selectedSizeId}
+                              onChange={(event) =>
+                                updateSize(item.productId, item.kind, item.selectedSizeId, event.target.value)
+                              }
+                            >
+                              {item.availableSizes.map((size) => (
+                                <option key={size.id} value={size.id}>
+                                  {size.sizeLabel}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        ) : (
+                          <p>{item.kind === "JEWELLERY" ? "Jewellery item" : "Free Size"}</p>
+                        )}
+
+                        <div className="cart-item-dates">
+                          <label className="cart-field">
+                            <span>Pickup date</span>
+                            <input
+                              type="date"
+                              value={item.rentalStartDate ?? ""}
+                              onChange={(event) =>
+                                updateDates(
+                                  item.productId,
+                                  item.kind,
+                                  item.selectedSizeId,
+                                  event.target.value,
+                                  item.rentalEndDate,
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="cart-field">
+                            <span>Return date</span>
+                            <input
+                              type="date"
+                              min={item.rentalStartDate || undefined}
+                              value={item.rentalEndDate ?? ""}
+                              onChange={(event) =>
+                                updateDates(
+                                  item.productId,
+                                  item.kind,
+                                  item.selectedSizeId,
+                                  item.rentalStartDate,
+                                  event.target.value,
+                                )
+                              }
+                            />
+                          </label>
+                        </div>
+
+                        <div className="cart-item-pricing">
+                          <span>Days: {rentalDays || "-"}</span>
+                          <span>Rental: RS {lineRentalTotal.toLocaleString("en-IN")}</span>
+                          <span>Deposit: RS {lineDepositTotal.toLocaleString("en-IN")}</span>
+                        </div>
+                      </div>
+                      <div className="cart-item-actions">
                         <label className="cart-field">
-                          <span>Size</span>
-                          <select
-                            value={item.selectedSizeId}
+                          <span>Qty</span>
+                          <input
+                            type="number"
+                            min={1}
+                            value={item.quantity}
                             onChange={(event) =>
-                              updateSize(item.productId, item.kind, item.selectedSizeId, event.target.value)
+                              updateQuantity(
+                                item.productId,
+                                item.kind,
+                                Number(event.target.value || 1),
+                                item.selectedSizeId,
+                              )
                             }
-                          >
-                            {item.availableSizes.map((size) => (
-                              <option key={size.id} value={size.id}>
-                                {size.sizeLabel}
-                              </option>
-                            ))}
-                          </select>
+                          />
                         </label>
-                      ) : (
-                        <p>{item.kind === "JEWELLERY" ? "Jewellery item" : "Free Size"}</p>
-                      )}
-                    </div>
-                    <div className="cart-item-actions">
-                      <label className="cart-field">
-                        <span>Qty</span>
-                        <input
-                          type="number"
-                          min={1}
-                          value={item.quantity}
-                          onChange={(event) =>
-                            updateQuantity(
-                              item.productId,
-                              item.kind,
-                              Number(event.target.value || 1),
-                              item.selectedSizeId,
-                            )
-                          }
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        className="cart-secondary-button"
-                        onClick={() => removeItem(item.productId, item.kind, item.selectedSizeId)}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </article>
-                ))}
+                        <button
+                          type="button"
+                          className="cart-secondary-button"
+                          onClick={() => removeItem(item.productId, item.kind, item.selectedSizeId)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -195,12 +200,12 @@ export default function CartPage() {
           <div className="cart-summary-panel">
             <div className="section-row">
               <h2>Checkout</h2>
-              <span>Subtotal: RS {subtotal.toLocaleString("en-IN")}</span>
+              <span>Total: RS {totals.grandTotal.toLocaleString("en-IN")}</span>
             </div>
 
             {!isLoggedIn ? (
               <div className="cart-empty-state">
-                <p>Please log in before placing your order.</p>
+                <p>Please log in before continuing to checkout.</p>
                 <div className="cart-auth-actions">
                   <Link href="/login" className="cart-primary-button">
                     Login
@@ -211,62 +216,19 @@ export default function CartPage() {
                 </div>
               </div>
             ) : (
-              <form className="checkout-form" onSubmit={handleSubmit}>
-                <label className="cart-field">
-                  <span>Name</span>
-                  <input
-                    required
-                    value={form.customerName}
-                    onChange={(event) => setForm((current) => ({ ...current, customerName: event.target.value }))}
-                  />
-                </label>
-                <label className="cart-field">
-                  <span>WhatsApp number</span>
-                  <input
-                    value={customer?.phone ?? ""}
-                    readOnly
-                  />
-                </label>
-                <label className="cart-field">
-                  <span>Rental start date</span>
-                  <input
-                    type="date"
-                    required
-                    value={form.rentalStartDate}
-                    onChange={(event) => setForm((current) => ({ ...current, rentalStartDate: event.target.value }))}
-                  />
-                </label>
-                <label className="cart-field">
-                  <span>Rental end date</span>
-                  <input
-                    type="date"
-                    required
-                    value={form.rentalEndDate}
-                    onChange={(event) => setForm((current) => ({ ...current, rentalEndDate: event.target.value }))}
-                  />
-                </label>
-                <label className="cart-field">
-                  <span>Special instructions</span>
-                  <textarea
-                    rows={4}
-                    value={form.specialInstructions}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, specialInstructions: event.target.value }))
-                    }
-                  />
-                </label>
+              <div className="checkout-form">
+                <div className="cart-summary-breakdown">
+                  <p>Rental subtotal: RS {totals.subtotal.toLocaleString("en-IN")}</p>
+                  <p>Security deposit: RS {totals.depositTotal.toLocaleString("en-IN")}</p>
+                  <p>
+                    <strong>Grand total: RS {totals.grandTotal.toLocaleString("en-IN")}</strong>
+                  </p>
+                </div>
 
-                {error ? <p className="cart-feedback cart-feedback-error">{error}</p> : null}
-                {successMessage ? <p className="cart-feedback cart-feedback-success">{successMessage}</p> : null}
-
-                <button
-                  type="submit"
-                  className="cart-primary-button cart-submit-button"
-                  disabled={submitting || items.length === 0}
-                >
-                  {submitting ? "Placing order..." : "Place order"}
-                </button>
-              </form>
+                <Link href="/checkout?mode=cart" className="cart-primary-button">
+                  Proceed to checkout
+                </Link>
+              </div>
             )}
           </div>
         </div>

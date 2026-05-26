@@ -241,7 +241,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "signup" }) {
                 <div className="cart-item-copy">
                   <h3>{order.orderNumber}</h3>
                   <p>
-                    {order.status} · {order.paymentStatus}
+                    {order.status} · {order.paymentStatus} · {order.paymentMethod ?? "PICKUP"}
                   </p>
                   <p>
                     {formatDate(order.rentalStartDate)} to {formatDate(order.rentalEndDate)}
@@ -269,6 +269,23 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "signup" }) {
                       <div>
                         <span>Security deposit</span>
                         <p>RS {formatMoney(order.securityDeposit)}</p>
+                      </div>
+                      <div>
+                        <span>Amount paid</span>
+                        <p>RS {formatMoney(order.amountPaid)}</p>
+                      </div>
+                      <div>
+                        <span>Due at pickup</span>
+                        <p>RS {formatMoney(order.amountDueAtPickup)}</p>
+                      </div>
+                      <div>
+                        <span>Deposit refund</span>
+                        <p>
+                          {order.depositRefundStatus ?? "NOT_APPLICABLE"}
+                          {order.depositRefundedAmount
+                            ? ` · RS ${formatMoney(order.depositRefundedAmount)}`
+                            : ""}
+                        </p>
                       </div>
                       <div>
                         <span>Placed on</span>
@@ -323,6 +340,11 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "signup" }) {
                             </div>
                             <div>
                               <p>Qty: {item.quantity}</p>
+                              <p>
+                                {item.rentalStartDate && item.rentalEndDate
+                                  ? `${formatDate(item.rentalStartDate)} to ${formatDate(item.rentalEndDate)}`
+                                  : "Dates pending"}
+                              </p>
                               <p>Days: {item.rentalDays ?? "N/A"}</p>
                               <p>Rate: RS {formatMoney(item.pricePerDay)}</p>
                               <p>Deposit: RS {formatMoney(item.depositAmount)}</p>
