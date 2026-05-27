@@ -5,6 +5,7 @@ import { createContext, useContext, useMemo, useSyncExternalStore } from "react"
 import type { CartItem, StoreProduct } from "../_lib/store-types";
 
 const CART_STORAGE_KEY = "lehenga-cart";
+const JEWELLERY_CART_LINE_ID = "__jewellery__";
 const cartListeners = new Set<() => void>();
 const EMPTY_CART: CartItem[] = [];
 let lastCartStorageValue: string | null = null;
@@ -22,32 +23,11 @@ type CartContextValue = {
       measurements?: CartItem["measurements"];
     },
   ) => void;
-  removeItem: (productId: string, kind: CartItem["kind"], selectedSizeId?: string) => void;
-  updateQuantity: (
-    productId: string,
-    kind: CartItem["kind"],
-    quantity: number,
-    selectedSizeId?: string,
-  ) => void;
-  updateSize: (
-    productId: string,
-    kind: CartItem["kind"],
-    previousSizeId: string | undefined,
-    selectedSizeId: string,
-  ) => void;
-  updateDates: (
-    productId: string,
-    kind: CartItem["kind"],
-    selectedSizeId: string | undefined,
-    rentalStartDate?: string,
-    rentalEndDate?: string,
-  ) => void;
-  updateMeasurements: (
-    productId: string,
-    kind: CartItem["kind"],
-    selectedSizeId: string | undefined,
-    measurements?: CartItem["measurements"],
-  ) => void;
+  removeItem: (cartLineId: string) => void;
+  updateQuantity: (cartLineId: string, quantity: number) => void;
+  updateSize: (cartLineId: string, selectedSizeId: string) => void;
+  updateDates: (cartLineId: string, rentalStartDate?: string, rentalEndDate?: string) => void;
+  updateMeasurements: (cartLineId: string, measurements?: CartItem["measurements"]) => void;
   clearCart: () => void;
 };
 
@@ -61,8 +41,41 @@ function getDefaultSize(product: StoreProduct) {
   return product.sizes[0];
 }
 
-function isSameCartLine(item: CartItem, productId: string, kind: CartItem["kind"], selectedSizeId?: string) {
-  return item.productId === productId && item.kind === kind && item.selectedSizeId === selectedSizeId;
+function getCartLineSizeId(product: StoreProduct, selectedSizeId?: string) {
+  const defaultSize = selectedSizeId
+    ? product.sizes.find((size) => size.id === selectedSizeId) ?? getDefaultSize(product)
+    : getDefaultSize(product);
+
+  if (defaultSize?.id) {
+    return {
+      selectedSizeId: defaultSize.id,
+      selectedSizeLabel: defaultSize.sizeLabel,
+    };
+  }
+
+  if (product.kind === "JEWELLERY") {
+    return {
+      selectedSizeId: JEWELLERY_CART_LINE_ID,
+      selectedSizeLabel: "Jewellery",
+    };
+  }
+
+  return {
+    selectedSizeId: undefined,
+    selectedSizeLabel: undefined,
+  };
+}
+
+function isSameCartLine(item: CartItem, cartLineId: string) {
+  return item.cartLineId === cartLineId;
+}
+
+function createCartLineId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `cart-line-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function readInitialCart() {
@@ -80,7 +93,7 @@ function readInitialCart() {
     const parsed = JSON.parse(stored) as Array<Partial<CartItem>>;
     const normalizedItems: CartItem[] = [];
 
-    for (const item of parsed) {
+    for (const [index, item] of parsed.entries()) {
       if (
         typeof item.productId !== "string" ||
         typeof item.slug !== "string" ||
@@ -93,6 +106,10 @@ function readInitialCart() {
       }
 
       normalizedItems.push({
+        cartLineId:
+          typeof item.cartLineId === "string" && item.cartLineId.length > 0
+            ? item.cartLineId
+            : `${isValidKind(item.kind) ? item.kind : "LEHENGA"}:${item.productId}:${item.selectedSizeId ?? "default"}:${index}`,
         productId: item.productId,
         kind: isValidKind(item.kind) ? item.kind : "LEHENGA",
         slug: item.slug,
@@ -185,18 +202,30 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        const defaultSize = selectedSizeId
-          ? product.sizes.find((size) => size.id === selectedSizeId) ?? getDefaultSize(product)
-          : getDefaultSize(product);
+        const cartLineSelection = getCartLineSizeId(product, selectedSizeId);
 
         updateStoredCart((current) => {
-          const existingIndex = current.findIndex((item) =>
-            isSameCartLine(item, product.id, product.kind, defaultSize?.id),
-          );
+          const existingIndex =
+            product.kind === "JEWELLERY"
+              ? current.findIndex(
+                  (item) =>
+                    item.productId === product.id &&
+                    item.kind === product.kind &&
+                    item.selectedSizeId === cartLineSelection.selectedSizeId,
+                )
+              : -1;
 
           if (existingIndex >= 0) {
             return current.map((item, index) =>
-              index === existingIndex ? { ...item, quantity: item.quantity + 1 } : item,
+              index === existingIndex
+                ? {
+                    ...item,
+                    quantity: item.quantity + 1,
+                    rentalStartDate: options?.rentalStartDate ?? item.rentalStartDate,
+                    rentalEndDate: options?.rentalEndDate ?? item.rentalEndDate,
+                    measurements: options?.measurements ?? item.measurements,
+                  }
+                : item,
             );
           }
 
@@ -211,8 +240,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
               rentalPricePerDay: product.rentalPricePerDay,
               securityDeposit: product.securityDeposit,
               quantity: 1,
-              selectedSizeId: defaultSize?.id,
-              selectedSizeLabel: defaultSize?.sizeLabel,
+              cartLineId: createCartLineId(),
+              selectedSizeId: cartLineSelection.selectedSizeId,
+              selectedSizeLabel: cartLineSelection.selectedSizeLabel,
               availableSizes: product.sizes,
               rentalStartDate: options?.rentalStartDate,
               rentalEndDate: options?.rentalEndDate,
@@ -221,29 +251,23 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           ];
         });
       },
-      removeItem: (productId, kind, selectedSizeId) => {
-        updateStoredCart((current) =>
-          current.filter((item) => !isSameCartLine(item, productId, kind, selectedSizeId)),
-        );
+      removeItem: (cartLineId) => {
+        updateStoredCart((current) => current.filter((item) => !isSameCartLine(item, cartLineId)));
       },
-      updateQuantity: (productId, kind, quantity, selectedSizeId) => {
+      updateQuantity: (cartLineId, quantity) => {
         if (quantity <= 0) {
-          updateStoredCart((current) =>
-            current.filter((item) => !isSameCartLine(item, productId, kind, selectedSizeId)),
-          );
+          updateStoredCart((current) => current.filter((item) => !isSameCartLine(item, cartLineId)));
           return;
         }
 
         updateStoredCart((current) =>
-          current.map((item) =>
-            isSameCartLine(item, productId, kind, selectedSizeId) ? { ...item, quantity } : item,
-          ),
+          current.map((item) => (isSameCartLine(item, cartLineId) ? { ...item, quantity } : item)),
         );
       },
-      updateSize: (productId, kind, previousSizeId, selectedSizeId) => {
+      updateSize: (cartLineId, selectedSizeId) => {
         updateStoredCart((current) =>
           current.map((item) => {
-            if (!isSameCartLine(item, productId, kind, previousSizeId)) {
+            if (!isSameCartLine(item, cartLineId)) {
               return item;
             }
 
@@ -257,20 +281,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           }),
         );
       },
-      updateDates: (productId, kind, selectedSizeId, rentalStartDate, rentalEndDate) => {
+      updateDates: (cartLineId, rentalStartDate, rentalEndDate) => {
         updateStoredCart((current) =>
-          current.map((item) =>
-            isSameCartLine(item, productId, kind, selectedSizeId)
-              ? { ...item, rentalStartDate, rentalEndDate }
-              : item,
-          ),
+          current.map((item) => (isSameCartLine(item, cartLineId) ? { ...item, rentalStartDate, rentalEndDate } : item)),
         );
       },
-      updateMeasurements: (productId, kind, selectedSizeId, measurements) => {
+      updateMeasurements: (cartLineId, measurements) => {
         updateStoredCart((current) =>
-          current.map((item) =>
-            isSameCartLine(item, productId, kind, selectedSizeId) ? { ...item, measurements } : item,
-          ),
+          current.map((item) => (isSameCartLine(item, cartLineId) ? { ...item, measurements } : item)),
         );
       },
       clearCart: () => writeCart([]),

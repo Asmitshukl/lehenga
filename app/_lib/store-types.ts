@@ -24,6 +24,15 @@ export type ProductReview = {
   };
 };
 
+export type LehengaMeasurements = {
+  upper?: string;
+  chest?: string;
+  waist?: string;
+  armHole?: string;
+  mori?: string;
+  notes?: string;
+};
+
 export type StoreProduct = {
   id: string;
   slug: string;
@@ -65,6 +74,7 @@ export type StoreCategory = {
 };
 
 export type CartItem = {
+  cartLineId: string;
   productId: string;
   kind: ProductType;
   slug: string;
@@ -78,14 +88,7 @@ export type CartItem = {
   availableSizes: ProductSize[];
   rentalStartDate?: string;
   rentalEndDate?: string;
-  measurements?: {
-    upper?: string;
-    chest?: string;
-    waist?: string;
-    armHole?: string;
-    mori?: string;
-    notes?: string;
-  };
+  measurements?: LehengaMeasurements;
   isMock?: boolean;
 };
 
@@ -151,6 +154,7 @@ export type StoreOrder = {
     rentalDays?: number;
     lineTotal: string;
     depositAmount?: string;
+    measurements?: LehengaMeasurements | null;
   }>;
 };
 

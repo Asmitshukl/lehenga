@@ -8,9 +8,9 @@ import { useEffect, useMemo, useState } from "react";
 import { StoreBreadcrumb } from "../_components/store-breadcrumb";
 import { useCart } from "../_components/cart-provider";
 import { useCustomerAuth } from "../_components/customer-auth-provider";
-import { clearBuyNowDraft, readBuyNowDraft } from "../_lib/checkout-draft";
+import { clearBuyNowDraft, readBuyNowDraft, saveBuyNowDraft } from "../_lib/checkout-draft";
 import { createOrder, previewOrder, verifyRazorpayPayment } from "../_lib/store-api";
-import type { CartItem, OrderPreview } from "../_lib/store-types";
+import type { CartItem, LehengaMeasurements, OrderPreview } from "../_lib/store-types";
 import { SiteFooter } from "../ui/site-footer";
 import { SiteHeader } from "../ui/site-header";
 
@@ -44,11 +44,26 @@ function mapItemToCheckoutPayload(item: CartItem) {
   };
 }
 
+function formatMeasurementSummary(measurements?: LehengaMeasurements) {
+  if (!measurements) {
+    return [];
+  }
+
+  return [
+    measurements.upper ? `Upper: ${measurements.upper}` : null,
+    measurements.chest ? `Chest: ${measurements.chest}` : null,
+    measurements.waist ? `Waist: ${measurements.waist}` : null,
+    measurements.armHole ? `Arm hole: ${measurements.armHole}` : null,
+    measurements.mori ? `Mori: ${measurements.mori}` : null,
+    measurements.notes ? `Notes: ${measurements.notes}` : null,
+  ].filter((value): value is string => Boolean(value));
+}
+
 export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
   const router = useRouter();
   const { items, clearCart } = useCart();
   const { token, customer, isLoggedIn } = useCustomerAuth();
-  const [buyNowItem, setBuyNowItem] = useState<CartItem | null>(null);
+  const [buyNowItem, setBuyNowItem] = useState<CartItem | null>(() => (mode === "buy-now" ? readBuyNowDraft() : null));
   const [preview, setPreview] = useState<OrderPreview | null>(null);
   const [specialInstructions, setSpecialInstructions] = useState("");
   const [loadingPreview, setLoadingPreview] = useState(true);
@@ -56,24 +71,26 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      if (mode === "buy-now") {
-        setBuyNowItem(readBuyNowDraft());
-        return;
-      }
-
-      setBuyNowItem(null);
-    }, 0);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [mode]);
-
   const checkoutItems = useMemo(() => {
     return mode === "buy-now" ? (buyNowItem ? [buyNowItem] : []) : items;
   }, [buyNowItem, items, mode]);
+
+  function updateBuyNowDates(rentalStartDate?: string, rentalEndDate?: string) {
+    setBuyNowItem((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const nextItem = {
+        ...current,
+        rentalStartDate,
+        rentalEndDate,
+      };
+
+      saveBuyNowDraft(nextItem);
+      return nextItem;
+    });
+  }
 
   useEffect(() => {
     async function loadPreview() {
@@ -88,7 +105,11 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
       if (hasMissingDates) {
         setLoadingPreview(false);
         setPreview(null);
-        setError("Please select pickup and return dates for every item before checkout.");
+        setError(
+          mode === "buy-now"
+            ? "Please select pickup and return dates below before checkout."
+            : "Please select pickup and return dates for every item before checkout.",
+        );
         return;
       }
 
@@ -111,7 +132,7 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
     }
 
     void loadPreview();
-  }, [checkoutItems, token]);
+  }, [checkoutItems, mode, token]);
 
   function clearCheckoutSource() {
     if (mode === "buy-now") {
@@ -230,7 +251,7 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
 
             <div className="cart-items-list">
               {checkoutItems.map((item) => (
-                <article key={`${item.kind}-${item.productId}-${item.selectedSizeId ?? "default"}`} className="cart-item-card">
+                <article key={item.cartLineId} className="cart-item-card">
                   <div className="cart-item-copy">
                     <h3>{item.name}</h3>
                     <p>
@@ -239,6 +260,37 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
                     <p>Qty: {item.quantity}</p>
                     <p>Price: RS {item.rentalPricePerDay.toLocaleString("en-IN")}/night</p>
                     {item.securityDeposit ? <p>Deposit: RS {item.securityDeposit.toLocaleString("en-IN")}</p> : null}
+                    {mode === "buy-now" ? (
+                      <div className="cart-item-dates">
+                        <label className="cart-field">
+                          <span>Pickup date</span>
+                          <input
+                            type="date"
+                            value={item.rentalStartDate ?? ""}
+                            onChange={(event) => updateBuyNowDates(event.target.value, item.rentalEndDate)}
+                          />
+                        </label>
+                        <label className="cart-field">
+                          <span>Return date</span>
+                          <input
+                            type="date"
+                            min={item.rentalStartDate || undefined}
+                            value={item.rentalEndDate ?? ""}
+                            onChange={(event) => updateBuyNowDates(item.rentalStartDate, event.target.value)}
+                          />
+                        </label>
+                      </div>
+                    ) : null}
+                    {item.kind === "LEHENGA" && formatMeasurementSummary(item.measurements).length > 0 ? (
+                      <div className="cart-item-measurements">
+                        <strong>Lehenga details</strong>
+                        <div className="cart-detail-pill-list">
+                          {formatMeasurementSummary(item.measurements).map((detail) => (
+                            <span key={detail}>{detail}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </article>
               ))}

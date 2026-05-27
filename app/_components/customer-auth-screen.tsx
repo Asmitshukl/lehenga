@@ -6,7 +6,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { StoreBreadcrumb } from "@/app/_components/store-breadcrumb";
 import { useCustomerAuth } from "@/app/_components/customer-auth-provider";
 import { fetchMyOrders, loginCustomer, signupCustomer } from "@/app/_lib/store-api";
-import type { StoreOrder } from "@/app/_lib/store-types";
+import type { LehengaMeasurements, StoreOrder } from "@/app/_lib/store-types";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -29,6 +29,41 @@ function formatAddress(order: StoreOrder) {
   ].filter(Boolean);
 
   return addressParts.join(", ");
+}
+
+function formatStatusLabel(value?: string | null) {
+  if (!value) {
+    return "Not available";
+  }
+
+  return value
+    .toLowerCase()
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function formatPaymentMethod(value?: string | null) {
+  if (!value) {
+    return "Pay at pickup";
+  }
+
+  return value === "ONLINE" ? "Online payment" : "Pay at pickup";
+}
+
+function formatMeasurementSummary(measurements?: LehengaMeasurements | null) {
+  if (!measurements) {
+    return [];
+  }
+
+  return [
+    measurements.upper ? `Upper: ${measurements.upper}` : null,
+    measurements.chest ? `Chest: ${measurements.chest}` : null,
+    measurements.waist ? `Waist: ${measurements.waist}` : null,
+    measurements.armHole ? `Arm hole: ${measurements.armHole}` : null,
+    measurements.mori ? `Mori: ${measurements.mori}` : null,
+    measurements.notes ? `Notes: ${measurements.notes}` : null,
+  ].filter((value): value is string => Boolean(value));
 }
 
 export function CustomerAuthScreen({ mode }: { mode: "login" | "signup" }) {
@@ -240,9 +275,9 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "signup" }) {
               <article key={order.id} className="cart-item-card store-order-card">
                 <div className="cart-item-copy">
                   <h3>{order.orderNumber}</h3>
-                  <p>
-                    {order.status} · {order.paymentStatus} · {order.paymentMethod ?? "PICKUP"}
-                  </p>
+                  <p>Fulfillment status: {formatStatusLabel(order.status)}</p>
+                  <p>Payment status: {formatStatusLabel(order.paymentStatus)}</p>
+                  <p>Payment method: {formatPaymentMethod(order.paymentMethod)}</p>
                   <p>
                     {formatDate(order.rentalStartDate)} to {formatDate(order.rentalEndDate)}
                   </p>
@@ -350,6 +385,16 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "signup" }) {
                               <p>Deposit: RS {formatMoney(item.depositAmount)}</p>
                               <p>Line total: RS {formatMoney(item.lineTotal)}</p>
                             </div>
+                            {formatMeasurementSummary(item.measurements).length > 0 ? (
+                              <div className="store-order-item-measurements">
+                                <strong>Lehenga details</strong>
+                                <div className="cart-detail-pill-list">
+                                  {formatMeasurementSummary(item.measurements).map((detail) => (
+                                    <span key={detail}>{detail}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
                           </article>
                         ))}
                       </div>

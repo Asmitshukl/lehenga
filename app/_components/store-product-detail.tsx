@@ -24,18 +24,25 @@ function getProductSpecs(product: StoreProduct) {
   if (product.typeLabel) specs.push({ label: "Type", value: product.typeLabel.replaceAll("_", " ") });
   if (product.color) specs.push({ label: "Color", value: product.color });
   if (product.fabric) specs.push({ label: "Fabric", value: product.fabric });
-  if (product.material) specs.push({ label: "Material", value: product.material });
   if (product.finish) specs.push({ label: "Finish", value: product.finish });
   if (product.stoneDetails) specs.push({ label: "Stone details", value: product.stoneDetails });
   if (product.occasion) specs.push({ label: "Occasion", value: product.occasion });
   if (product.minimumRentalDays) specs.push({ label: "Minimum rental", value: `${product.minimumRentalDays} day(s)` });
   if (product.securityDeposit !== undefined) specs.push({ label: "Security deposit", value: formatCurrency(product.securityDeposit) ?? "" });
-  if (product.originalPrice !== undefined) specs.push({ label: "Original price", value: formatCurrency(product.originalPrice) ?? "" });
   if (product.kind === "JEWELLERY" && product.stockQuantity !== undefined) {
     specs.push({ label: "Stock quantity", value: String(product.stockQuantity) });
   }
 
   return specs.filter((spec) => spec.value.trim().length > 0);
+}
+
+function getAverageRating(product: StoreProduct) {
+  if (!product.reviews || product.reviews.length === 0) {
+    return null;
+  }
+
+  const total = product.reviews.reduce((sum, review) => sum + review.rating, 0);
+  return total / product.reviews.length;
 }
 
 function getAboutNarrative(product: StoreProduct) {
@@ -61,6 +68,7 @@ export function StoreProductDetail({
 }) {
   const specs = getProductSpecs(product);
   const aboutNarrative = getAboutNarrative(product);
+  const averageRating = getAverageRating(product);
 
   return (
     <section className="product-detail-page">
@@ -79,21 +87,15 @@ export function StoreProductDetail({
           <div className="product-detail-copy">
             <div className="product-detail-copy-inner">
               <h1>{product.name}</h1>
-              {product.reviews && product.reviews.length > 0 ? (
-                <div className="product-detail-inline-reviews">
-                  {product.reviews.slice(0, 2).map((review) => (
-                    <article key={review.id} className="product-detail-inline-review">
-                      <div className="product-detail-inline-review-head">
-                        <strong>
-                          {review.customer.firstName}
-                          {review.customer.lastName ? ` ${review.customer.lastName}` : ""}
-                        </strong>
-                        <span>{"★".repeat(review.rating)}</span>
-                      </div>
-                      <p>{review.comment}</p>
-                    </article>
-                  ))}
-                </div>
+              {averageRating ? (
+                <Link href="#product-reviews" className="product-detail-review-summary">
+                  <strong>{averageRating.toFixed(1)} / 5</strong>
+                  <span>{"★".repeat(Math.round(averageRating))}</span>
+                  <small>
+                    Based on {product.reviews?.length ?? 0} review{product.reviews?.length === 1 ? "" : "s"}.
+                    Click to read all comments.
+                  </small>
+                </Link>
               ) : null}
               {product.shortDescription ? <p className="product-detail-summary">{product.shortDescription}</p> : null}
             </div>
@@ -175,8 +177,8 @@ export function StoreProductDetail({
         ) : null}
 
         <StorePromoBanner />
-        <section className="product-detail-review-section">
-          <ProductReviewForm product={product} />
+        <section id="product-reviews" className="product-detail-review-section">
+          <ProductReviewForm product={product} reviews={product.reviews ?? []} />
         </section>
         <StoreFaqSection />
       </div>

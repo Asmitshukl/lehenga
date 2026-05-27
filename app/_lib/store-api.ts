@@ -3,6 +3,7 @@ import type {
   CheckoutOrderResponse,
   CustomerAuthResponse,
   CustomerProfile,
+  LehengaMeasurements,
   OrderPreview,
   ProductType,
   StoreCategory,
@@ -119,6 +120,30 @@ type ApiCategory = {
   jewelleryItems: ApiJewellery[];
 };
 
+type ApiOrderItem = {
+  id: string;
+  itemType: ProductType;
+  productNameSnapshot: string;
+  sizeLabelSnapshot?: string | null;
+  quantity: number;
+  rentalStartDate?: string;
+  rentalEndDate?: string;
+  pricePerDay?: string;
+  rentalDays?: number;
+  lineTotal: string;
+  depositAmount?: string;
+  measurementUpper?: string | null;
+  measurementChest?: string | null;
+  measurementWaist?: string | null;
+  measurementArmHole?: string | null;
+  measurementMori?: string | null;
+  measurementNotes?: string | null;
+};
+
+type ApiOrder = Omit<StoreOrder, "items"> & {
+  items: ApiOrderItem[];
+};
+
 type RequestOptions = {
   method?: "GET" | "POST";
   body?: unknown;
@@ -189,6 +214,45 @@ function normalizeReviews(
       lastName: review.customer.lastName ?? undefined,
     },
   }));
+}
+
+function normalizeMeasurements(item: ApiOrderItem): LehengaMeasurements | undefined {
+  const measurements: LehengaMeasurements = {
+    upper: item.measurementUpper ?? undefined,
+    chest: item.measurementChest ?? undefined,
+    waist: item.measurementWaist ?? undefined,
+    armHole: item.measurementArmHole ?? undefined,
+    mori: item.measurementMori ?? undefined,
+    notes: item.measurementNotes ?? undefined,
+  };
+
+  return Object.values(measurements).some((value) => typeof value === "string" && value.trim().length > 0)
+    ? measurements
+    : undefined;
+}
+
+function normalizeOrderItem(item: ApiOrderItem) {
+  return {
+    id: item.id,
+    itemType: item.itemType,
+    productNameSnapshot: item.productNameSnapshot,
+    sizeLabelSnapshot: item.sizeLabelSnapshot ?? undefined,
+    quantity: item.quantity,
+    rentalStartDate: item.rentalStartDate,
+    rentalEndDate: item.rentalEndDate,
+    pricePerDay: item.pricePerDay,
+    rentalDays: item.rentalDays,
+    lineTotal: item.lineTotal,
+    depositAmount: item.depositAmount,
+    measurements: normalizeMeasurements(item),
+  };
+}
+
+function normalizeOrder(order: ApiOrder): StoreOrder {
+  return {
+    ...order,
+    items: order.items.map(normalizeOrderItem),
+  };
 }
 
 export function normalizeLehenga(item: ApiLehenga): StoreProduct {
@@ -411,9 +475,11 @@ export async function fetchCustomerProfile(token: string) {
 }
 
 export async function fetchMyOrders(token: string) {
-  return storeRequest<StoreOrder[]>("/orders/mine", {
+  const orders = await storeRequest<ApiOrder[]>("/orders/mine", {
     token,
   });
+
+  return orders.map(normalizeOrder);
 }
 
 export async function createOrder(
@@ -450,11 +516,16 @@ export async function createOrder(
   },
   token: string,
 ) {
-  return storeRequest<CheckoutOrderResponse>("/orders", {
+  const result = await storeRequest<{ order: ApiOrder; razorpayOrder?: CheckoutOrderResponse["razorpayOrder"] }>("/orders", {
     method: "POST",
     body: payload,
     token,
   });
+
+  return {
+    ...result,
+    order: normalizeOrder(result.order),
+  };
 }
 
 export async function previewOrder(
@@ -503,11 +574,13 @@ export async function verifyRazorpayPayment(
   },
   token: string,
 ) {
-  return storeRequest<StoreOrder>("/payments/razorpay/verify", {
+  const order = await storeRequest<ApiOrder>("/payments/razorpay/verify", {
     method: "POST",
     body: payload,
     token,
   });
+
+  return normalizeOrder(order);
 }
 
 export async function submitProductReview(

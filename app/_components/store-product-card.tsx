@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { useCart } from "./cart-provider";
 import { StoreProductImage } from "./store-product-image";
+import { getRemainingInventory, isProductOutOfStock } from "../_lib/product-inventory";
 import { getProductHref } from "../_lib/store-routes";
 import type { StoreProduct } from "../_lib/store-types";
 
@@ -17,7 +19,10 @@ function PlusIcon() {
 
 export function StoreProductCard({ product }: { product: StoreProduct }) {
   const { addItem } = useCart();
+  const router = useRouter();
   const href = getProductHref(product);
+  const remainingInventory = getRemainingInventory(product);
+  const isOutOfStock = isProductOutOfStock(product);
 
   return (
     <article className="product-card">
@@ -29,16 +34,25 @@ export function StoreProductCard({ product }: { product: StoreProduct }) {
         <div className="product-card-copy">
           <h3>{product.name}</h3>
           <p>RS {product.rentalPricePerDay.toLocaleString("en-IN")}/night</p>
+          <p className={`product-card-stock${isOutOfStock ? " is-out" : ""}`}>
+            {isOutOfStock ? "Out of stock" : `${remainingInventory} left`}
+          </p>
         </div>
         <button
           type="button"
-          aria-label={product.isMock ? `${product.name} is mock data` : `Add ${product.name}`}
+          aria-label={product.isMock || isOutOfStock ? `${product.name} is unavailable` : `Add ${product.name}`}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
+
+            if (product.kind === "LEHENGA") {
+              router.push(href);
+              return;
+            }
+
             addItem(product);
           }}
-          disabled={product.isMock}
+          disabled={product.isMock || isOutOfStock}
         >
           <PlusIcon />
         </button>

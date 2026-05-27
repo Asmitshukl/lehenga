@@ -5,9 +5,15 @@ import { useState } from "react";
 
 import { useCustomerAuth } from "./customer-auth-provider";
 import { submitProductReview } from "../_lib/store-api";
-import type { StoreProduct } from "../_lib/store-types";
+import type { ProductReview, StoreProduct } from "../_lib/store-types";
 
-export function ProductReviewForm({ product }: { product: StoreProduct }) {
+function formatReviewDate(value: string) {
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+  }).format(new Date(value));
+}
+
+export function ProductReviewForm({ product, reviews }: { product: StoreProduct; reviews: ProductReview[] }) {
   const router = useRouter();
   const { token, isLoggedIn } = useCustomerAuth();
   const [rating, setRating] = useState(5);
@@ -56,6 +62,27 @@ export function ProductReviewForm({ product }: { product: StoreProduct }) {
   return (
     <div className="product-detail-review-card">
       <h2>Customer Reviews</h2>
+      {reviews.length > 0 ? (
+        <div className="product-detail-review-list">
+          {reviews.map((review) => (
+            <article key={review.id} className="product-detail-review-list-item">
+              <div className="product-detail-review-list-head">
+                <div>
+                  <strong>
+                    {review.customer.firstName}
+                    {review.customer.lastName ? ` ${review.customer.lastName}` : ""}
+                  </strong>
+                  <p>{formatReviewDate(review.createdAt)}</p>
+                </div>
+                <span>{"★".repeat(review.rating)}</span>
+              </div>
+              <p>{review.comment}</p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p className="product-detail-review-empty">No customer comments yet. Be the first to review this product.</p>
+      )}
       <div className="product-detail-review-stars" aria-label={`Selected rating ${rating} out of 5`}>
         {[1, 2, 3, 4, 5].map((value) => (
           <button

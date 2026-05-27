@@ -2,11 +2,13 @@
 
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useState } from "react";
 
+import { LehengaDetailsDialog } from "../_components/lehenga-details-dialog";
 import { StoreBreadcrumb } from "../_components/store-breadcrumb";
 import { useCart } from "../_components/cart-provider";
 import { useCustomerAuth } from "../_components/customer-auth-provider";
+import type { CartItem, LehengaMeasurements } from "../_lib/store-types";
 import { SiteFooter } from "../ui/site-footer";
 import { SiteHeader } from "../ui/site-header";
 
@@ -35,12 +37,27 @@ function getRentalDays(startDate?: string, endDate?: string) {
   return Math.floor(diff / (24 * 60 * 60 * 1000)) + 1;
 }
 
-export default function CartPage() {
-  const { items, removeItem, updateQuantity, updateSize, updateDates, clearCart } = useCart();
-  const { isLoggedIn } = useCustomerAuth();
+function formatMeasurementSummary(measurements?: LehengaMeasurements) {
+  if (!measurements) {
+    return [];
+  }
 
-  const totals = useMemo(() => {
-    return items.reduce(
+  return [
+    measurements.upper ? `Upper: ${measurements.upper}` : null,
+    measurements.chest ? `Chest: ${measurements.chest}` : null,
+    measurements.waist ? `Waist: ${measurements.waist}` : null,
+    measurements.armHole ? `Arm hole: ${measurements.armHole}` : null,
+    measurements.mori ? `Mori: ${measurements.mori}` : null,
+    measurements.notes ? `Notes: ${measurements.notes}` : null,
+  ].filter((value): value is string => Boolean(value));
+}
+
+export default function CartPage() {
+  const { items, removeItem, updateQuantity, updateSize, updateDates, updateMeasurements, clearCart } = useCart();
+  const { isLoggedIn } = useCustomerAuth();
+  const [editingItemKey, setEditingItemKey] = useState<string | null>(null);
+
+  const totals = items.reduce(
       (summary, item) => {
         const rentalDays = getRentalDays(item.rentalStartDate, item.rentalEndDate);
         const lineRentalTotal = item.rentalPricePerDay * item.quantity * rentalDays;
@@ -54,7 +71,11 @@ export default function CartPage() {
       },
       { subtotal: 0, depositTotal: 0, grandTotal: 0 },
     );
-  }, [items]);
+
+  const editingItem =
+    editingItemKey === null
+      ? null
+      : items.find((item) => item.cartLineId === editingItemKey) ?? null;
 
   return (
     <main className="lehenga-page">
@@ -90,10 +111,11 @@ export default function CartPage() {
                   const rentalDays = getRentalDays(item.rentalStartDate, item.rentalEndDate);
                   const lineRentalTotal = item.rentalPricePerDay * item.quantity * rentalDays;
                   const lineDepositTotal = (item.securityDeposit ?? 0) * item.quantity;
+                  const measurementSummary = formatMeasurementSummary(item.measurements);
 
                   return (
                     <article
-                      key={`${item.kind}-${item.productId}-${item.selectedSizeId ?? "default"}`}
+                      key={item.cartLineId}
                       className="cart-item-card"
                     >
                       <div className="product-card-image-wrap cart-item-media">
@@ -108,9 +130,7 @@ export default function CartPage() {
                             <span>Size</span>
                             <select
                               value={item.selectedSizeId}
-                              onChange={(event) =>
-                                updateSize(item.productId, item.kind, item.selectedSizeId, event.target.value)
-                              }
+                              onChange={(event) => updateSize(item.cartLineId, event.target.value)}
                             >
                               {item.availableSizes.map((size) => (
                                 <option key={size.id} value={size.id}>
@@ -130,13 +150,7 @@ export default function CartPage() {
                               type="date"
                               value={item.rentalStartDate ?? ""}
                               onChange={(event) =>
-                                updateDates(
-                                  item.productId,
-                                  item.kind,
-                                  item.selectedSizeId,
-                                  event.target.value,
-                                  item.rentalEndDate,
-                                )
+                                updateDates(item.cartLineId, event.target.value, item.rentalEndDate)
                               }
                             />
                           </label>
@@ -147,13 +161,7 @@ export default function CartPage() {
                               min={item.rentalStartDate || undefined}
                               value={item.rentalEndDate ?? ""}
                               onChange={(event) =>
-                                updateDates(
-                                  item.productId,
-                                  item.kind,
-                                  item.selectedSizeId,
-                                  item.rentalStartDate,
-                                  event.target.value,
-                                )
+                                updateDates(item.cartLineId, item.rentalStartDate, event.target.value)
                               }
                             />
                           </label>
@@ -164,6 +172,31 @@ export default function CartPage() {
                           <span>Rental: RS {lineRentalTotal.toLocaleString("en-IN")}</span>
                           <span>Deposit: RS {lineDepositTotal.toLocaleString("en-IN")}</span>
                         </div>
+                        {item.kind === "LEHENGA" ? (
+                          <div className="cart-item-measurements">
+                            <div className="cart-item-measurements-head">
+                              <strong>Saved lehenga details</strong>
+                              <button
+                                type="button"
+                                className="cart-link-button"
+                                onClick={() =>
+                                  setEditingItemKey(item.cartLineId)
+                                }
+                              >
+                                {measurementSummary.length > 0 ? "Edit details" : "Add details"}
+                              </button>
+                            </div>
+                            {measurementSummary.length > 0 ? (
+                              <div className="cart-detail-pill-list">
+                                {measurementSummary.map((detail) => (
+                                  <span key={detail}>{detail}</span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p>Fill this form before checkout so the stitching details stay attached to this lehenga.</p>
+                            )}
+                          </div>
+                        ) : null}
                       </div>
                       <div className="cart-item-actions">
                         <label className="cart-field">
@@ -173,19 +206,14 @@ export default function CartPage() {
                             min={1}
                             value={item.quantity}
                             onChange={(event) =>
-                              updateQuantity(
-                                item.productId,
-                                item.kind,
-                                Number(event.target.value || 1),
-                                item.selectedSizeId,
-                              )
+                              updateQuantity(item.cartLineId, Number(event.target.value || 1))
                             }
                           />
                         </label>
                         <button
                           type="button"
                           className="cart-secondary-button"
-                          onClick={() => removeItem(item.productId, item.kind, item.selectedSizeId)}
+                          onClick={() => removeItem(item.cartLineId)}
                         >
                           Remove
                         </button>
@@ -235,6 +263,19 @@ export default function CartPage() {
       </section>
 
       <SiteFooter />
+      {editingItem ? (
+        <LehengaDetailsDialog
+          key={editingItem.cartLineId}
+          productName={editingItem.name}
+          initialMeasurements={editingItem.measurements}
+          submitLabel="Save details"
+          onClose={() => setEditingItemKey(null)}
+          onSubmit={(nextMeasurements) => {
+            updateMeasurements(editingItem.cartLineId, nextMeasurements as CartItem["measurements"]);
+            setEditingItemKey(null);
+          }}
+        />
+      ) : null}
     </main>
   );
 }
