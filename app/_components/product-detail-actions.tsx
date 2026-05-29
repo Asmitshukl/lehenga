@@ -11,6 +11,7 @@ import { saveBuyNowDraft } from "../_lib/checkout-draft";
 import type { CartItem, StoreProduct } from "../_lib/store-types";
 
 type LehengaActionMode = "cart" | "buy-now" | null;
+const CART_STORAGE_KEY = "lehenga-cart";
 const JEWELLERY_DETAIL_SIZE_ID = "__jewellery__";
 
 function formatSelectedDate(value?: string) {
@@ -69,6 +70,79 @@ function createDraftItem(
     rentalEndDate,
     measurements,
   };
+}
+
+function createJewelleryCartItem(
+  product: StoreProduct,
+  rentalStartDate?: string,
+  rentalEndDate?: string,
+): CartItem {
+  return {
+    cartLineId: `JEWELLERY:${product.id}:${JEWELLERY_DETAIL_SIZE_ID}:${Date.now()}`,
+    productId: product.id,
+    kind: "JEWELLERY",
+    slug: product.slug,
+    name: product.name,
+    image: product.image,
+    rentalPricePerDay: product.rentalPricePerDay,
+    securityDeposit: product.securityDeposit,
+    quantity: 1,
+    selectedSizeId: JEWELLERY_DETAIL_SIZE_ID,
+    selectedSizeLabel: "Jewellery",
+    availableSizes: [],
+    rentalStartDate,
+    rentalEndDate,
+  };
+}
+
+function readCartItems() {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  const rawCart = window.localStorage.getItem(CART_STORAGE_KEY);
+
+  if (!rawCart) {
+    return [];
+  }
+
+  try {
+    const parsedCart = JSON.parse(rawCart);
+    return Array.isArray(parsedCart) ? (parsedCart as CartItem[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveJewelleryToCart(product: StoreProduct, rentalStartDate?: string, rentalEndDate?: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const currentCart = readCartItems();
+  const existingIndex = currentCart.findIndex(
+    (item) =>
+      item.kind === "JEWELLERY" &&
+      item.productId === product.id &&
+      item.selectedSizeId === JEWELLERY_DETAIL_SIZE_ID,
+  );
+
+  const nextCart =
+    existingIndex >= 0
+      ? currentCart.map((item, index) =>
+          index === existingIndex
+            ? {
+                ...item,
+                quantity: item.quantity + 1,
+                rentalStartDate: rentalStartDate || item.rentalStartDate,
+                rentalEndDate: rentalEndDate || item.rentalEndDate,
+              }
+            : item,
+        )
+      : [...currentCart, createJewelleryCartItem(product, rentalStartDate, rentalEndDate)];
+
+  window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(nextCart));
+  window.dispatchEvent(new Event("storage"));
 }
 
 export function ProductDetailActions({ product }: { product: StoreProduct }) {
@@ -171,12 +245,46 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
     proceedToCheckout();
   };
 
+  const handleJewelleryAddToCart = () => {
+    if (isOutOfStock) {
+      setActionSuccess(null);
+      setActionError(`${product.name} is currently out of stock.`);
+      return;
+    }
+
+    if (!validateSelectedDateRange()) {
+      return;
+    }
+
+    saveJewelleryToCart(product, rentalStartDate, rentalEndDate);
+    setActionError(null);
+    setActionSuccess(`${product.name} was added to your cart.`);
+    window.location.assign("/cart");
+  };
+
+  const handleJewelleryBookNow = () => {
+    if (isOutOfStock) {
+      setActionSuccess(null);
+      setActionError(`${product.name} is currently out of stock.`);
+      return;
+    }
+
+    if (!validateSelectedDateRange()) {
+      return;
+    }
+
+    saveBuyNowDraft(createJewelleryCartItem(product, rentalStartDate, rentalEndDate));
+    setActionError(null);
+    setActionSuccess(null);
+    window.location.assign("/checkout?mode=buy-now");
+  };
+
   if (product.kind === "JEWELLERY") {
     return (
       <JewelleryDetailActions
         product={product}
-        onAddToCart={() => handleAddToCart()}
-        onBookNow={handleBookNow}
+        onAddToCart={handleJewelleryAddToCart}
+        onBookNow={handleJewelleryBookNow}
         rentalStartDate={rentalStartDate}
         rentalEndDate={rentalEndDate}
         formattedStartDate={formattedStartDate}

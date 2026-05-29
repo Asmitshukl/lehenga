@@ -154,8 +154,10 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "signup" }) {
     ? "Login to continue your rental journey."
     : "Create your account.";
   const heroDescription = isLoggedIn
-    ? "You are signed in. You can review your account details, check your orders, or continue to checkout."
-    : "A black, white, and light-gray auth experience matched to the updated cart styling.";
+    ? "Track pickups, payments, deposits, and order details from one clean account space."
+    : "Sign in to manage rentals, pickup details, payments, and order history.";
+  const activeOrderCount = visibleOrders.filter((order) => order.status !== "COMPLETED" && order.status !== "CANCELLED").length;
+  const totalOrderValue = visibleOrders.reduce((sum, order) => sum + Number(order.totalAmount ?? 0), 0);
 
   return (
     <section className="store-auth-shell">
@@ -179,19 +181,30 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "signup" }) {
           </div>
 
           {isLoggedIn && customer ? (
-            <div className="cart-items-list">
-              <article className="cart-item-card store-auth-account-card">
-                <div className="cart-item-copy">
-                  <h3>{customer.firstName}</h3>
-                  <p>{customer.phone}</p>
-                  {customer.email ? <p>{customer.email}</p> : null}
+            <div className="store-profile-card">
+              <div className="store-profile-avatar" aria-hidden="true">
+                {customer.firstName.charAt(0).toUpperCase()}
+              </div>
+              <div className="store-profile-main">
+                <span className="store-auth-kicker">Signed in as</span>
+                <h3>
+                  {customer.firstName}
+                  {customer.lastName ? ` ${customer.lastName}` : ""}
+                </h3>
+                <div className="store-profile-detail-grid">
+                  <div>
+                    <span>Phone</span>
+                    <p>{customer.phone}</p>
+                  </div>
+                  <div>
+                    <span>Email</span>
+                    <p>{customer.email ?? "Not added"}</p>
+                  </div>
                 </div>
-                <div className="cart-item-actions">
-                  <button type="button" className="cart-secondary-button" onClick={logout}>
-                    Logout
-                  </button>
-                </div>
-              </article>
+              </div>
+              <button type="button" className="cart-secondary-button" onClick={logout}>
+                Logout
+              </button>
             </div>
           ) : (
             <form className="checkout-form" onSubmit={handleSubmit}>
@@ -257,32 +270,67 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "signup" }) {
 
       <section className="store-auth-orders">
         <div className="section-row">
-          <h2>My orders</h2>
+          <div>
+            <h2>My orders</h2>
+            <p>Pickup schedule, payment status, and product details.</p>
+          </div>
           <span>{visibleOrders.length} order(s)</span>
         </div>
 
         {!isLoggedIn ? (
-          <div className="cart-empty-state">
-            <p>Login to see your orders and continue with checkout.</p>
+          <div className="store-auth-empty">
+            <h3>Orders appear after login</h3>
+            <p>Sign in to view pickup dates, payment status, and booked products.</p>
           </div>
         ) : visibleOrders.length === 0 ? (
-          <div className="cart-empty-state">
-            <p>No orders yet.</p>
+          <div className="store-auth-empty">
+            <h3>No orders yet</h3>
+            <p>Your rental history will appear here after checkout.</p>
+            <Link href="/shop-all" className="cart-primary-button">
+              Browse collection
+            </Link>
           </div>
         ) : (
-          <div className="cart-items-list">
+          <div className="store-order-dashboard">
+            <div className="store-order-stat">
+              <span>Total orders</span>
+              <strong>{visibleOrders.length}</strong>
+            </div>
+            <div className="store-order-stat">
+              <span>Active rentals</span>
+              <strong>{activeOrderCount}</strong>
+            </div>
+            <div className="store-order-stat">
+              <span>Total value</span>
+              <strong>RS {formatMoney(totalOrderValue)}</strong>
+            </div>
+          </div>
+        )}
+
+        {isLoggedIn && visibleOrders.length > 0 ? (
+          <div className="store-order-list">
             {visibleOrders.map((order) => (
-              <article key={order.id} className="cart-item-card store-order-card">
-                <div className="cart-item-copy">
-                  <h3>{order.orderNumber}</h3>
-                  <p>Fulfillment status: {formatStatusLabel(order.status)}</p>
-                  <p>Payment status: {formatStatusLabel(order.paymentStatus)}</p>
-                  <p>Payment method: {formatPaymentMethod(order.paymentMethod)}</p>
-                  <p>
-                    {formatDate(order.rentalStartDate)} to {formatDate(order.rentalEndDate)}
-                  </p>
-                  <p>Total: RS {formatMoney(order.totalAmount)}</p>
+              <article key={order.id} className="store-order-card">
+                <div className="store-order-card-head">
+                  <div>
+                    <span className="store-auth-kicker">Order</span>
+                    <h3>{order.orderNumber}</h3>
+                    <p>
+                      {formatDate(order.rentalStartDate)} to {formatDate(order.rentalEndDate)}
+                    </p>
+                  </div>
+                  <div className="store-order-total">
+                    <span>Total</span>
+                    <strong>RS {formatMoney(order.totalAmount)}</strong>
+                  </div>
                 </div>
+
+                <div className="store-order-status-row">
+                  <span>{formatStatusLabel(order.status)}</span>
+                  <span>{formatStatusLabel(order.paymentStatus)}</span>
+                  <span>{formatPaymentMethod(order.paymentMethod)}</span>
+                </div>
+
                 <div className="store-order-actions">
                   <button
                     type="button"
@@ -404,7 +452,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "signup" }) {
               </article>
             ))}
           </div>
-        )}
+        ) : null}
       </section>
     </section>
   );
