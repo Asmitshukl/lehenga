@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { useMemo, useRef, useState } from "react";
-import type { MouseEvent } from "react";
 
 import { useCart } from "./cart-provider";
 import { LehengaDetailsDialog } from "./lehenga-details-dialog";
@@ -97,13 +96,7 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
   const remainingInventory = getRemainingInventory(product);
   const isOutOfStock = isProductOutOfStock(product);
 
-  const validateJewelleryDates = () => {
-    if (!rentalStartDate || !rentalEndDate) {
-      setActionSuccess(null);
-      setActionError("Please select pickup and return dates for this jewellery item.");
-      return false;
-    }
-
+  const validateSelectedDateRange = () => {
     if (hasInvalidDateRange(rentalStartDate, rentalEndDate)) {
       setActionSuccess(null);
       setActionError("Return date must be after the pickup date.");
@@ -120,7 +113,7 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
       return;
     }
 
-    if (product.kind === "JEWELLERY" && !validateJewelleryDates()) {
+    if (product.kind === "JEWELLERY" && !validateSelectedDateRange()) {
       return;
     }
 
@@ -140,7 +133,7 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
       return;
     }
 
-    if (product.kind === "JEWELLERY" && !validateJewelleryDates()) {
+    if (product.kind === "JEWELLERY" && !validateSelectedDateRange()) {
       return;
     }
 
@@ -368,17 +361,11 @@ function JewelleryDetailActions({
   remainingInventory: number;
   isOutOfStock: boolean;
 }) {
-  const handleJewelleryAddToCart = (event: MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-
+  const handleJewelleryAddToCart = () => {
     onAddToCart();
   };
 
-  const handleJewelleryBookNow = (event: MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-
+  const handleJewelleryBookNow = () => {
     onBookNow();
   };
 
