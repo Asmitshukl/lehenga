@@ -11,6 +11,11 @@ import logo from "@/photo/logo/hnK8aSlqZBv5pOIXU5O0NeeQfQs.png";
 import { useCart } from "../_components/cart-provider";
 import { useCustomerAuth } from "../_components/customer-auth-provider";
 import { clearBuyNowDraft, readBuyNowDraft, saveBuyNowDraft } from "../_lib/checkout-draft";
+import {
+  markOnlinePaymentAbandoned,
+  markOnlinePaymentInitiated,
+  markOnlinePaymentVerified,
+} from "../_lib/payment-attempts";
 import { createOrder, previewOrder, verifyRazorpayPayment } from "../_lib/store-api";
 import type { CartItem, LehengaMeasurements, OrderPreview } from "../_lib/store-types";
 
@@ -316,6 +321,8 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
     setError(null);
     setSuccess(null);
 
+    let initiatedOnlineOrder: { id: string; orderNumber: string } | null = null;
+
     try {
       const result = await createOrder(
         {
@@ -337,6 +344,9 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
       if (!result.razorpayOrder) {
         throw new Error("Unable to start online payment.");
       }
+
+      markOnlinePaymentInitiated(result.order);
+      initiatedOnlineOrder = result.order;
 
       const Razorpay = window.Razorpay;
 
@@ -371,14 +381,16 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
               },
               token,
             );
+            markOnlinePaymentVerified(result.order.id);
             clearCheckoutSource();
             setSuccess(`Payment completed for ${result.order.orderNumber}.`);
             router.refresh();
           } catch (verificationError) {
+            markOnlinePaymentAbandoned(result.order);
             setError(
               verificationError instanceof Error
                 ? verificationError.message
-                : "Payment was made, but verification failed.",
+                : "Payment could not be verified, so the order was not completed.",
             );
           } finally {
             setSubmitting(false);
@@ -386,6 +398,9 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
         },
         modal: {
           ondismiss: () => {
+            markOnlinePaymentAbandoned(result.order);
+            setSuccess(null);
+            setError("Payment was not completed, so the order was not placed.");
             setSubmitting(false);
           },
         },
@@ -394,6 +409,9 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
       razorpay.open();
       return;
     } catch (checkoutError) {
+      if (paymentMethod === "ONLINE" && initiatedOnlineOrder) {
+        markOnlinePaymentAbandoned(initiatedOnlineOrder);
+      }
       setError(checkoutError instanceof Error ? checkoutError.message : "Failed to place your order.");
       setSubmitting(false);
     }

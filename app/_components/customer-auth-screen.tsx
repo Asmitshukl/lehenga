@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 
 import { StoreBreadcrumb } from "@/app/_components/store-breadcrumb";
 import { useCustomerAuth } from "@/app/_components/customer-auth-provider";
+import { filterVisibleOrders } from "@/app/_lib/payment-attempts";
 import { fetchMyOrders, loginCustomer, signupCustomer } from "@/app/_lib/store-api";
 import type { LehengaMeasurements, StoreOrder } from "@/app/_lib/store-types";
 
@@ -89,7 +90,7 @@ export function CustomerAuthScreen({ mode }: { mode: "login" | "signup" }) {
 
     const loadOrders = async () => {
       try {
-        const nextOrders = await fetchMyOrders(token);
+        const nextOrders = filterVisibleOrders(await fetchMyOrders(token));
 
         if (!cancelled) {
           setOrders(nextOrders);
