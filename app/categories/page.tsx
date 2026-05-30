@@ -34,7 +34,7 @@ export default function CategoriesPage() {
     <main className="lehenga-page">
       <SiteHeader />
       <section className="shopall-section">
-        <StoreBreadcrumb items={[{ label: "Home", href: "/#home" }, { label: "Collections" }]} />
+        <StoreBreadcrumb items={[{ label: "Home", href: "/#home" }, { label: "Categories" }]} />
 
         {categories.map((category) => {
           const lehengaCount = category.products.filter((product) => product.kind === "LEHENGA").length;

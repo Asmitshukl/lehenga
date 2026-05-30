@@ -22,9 +22,7 @@ const MEASUREMENT_FIELDS: Array<{
 ];
 
 export function LehengaDetailsDialog({
-  productName,
   initialMeasurements,
-  submitLabel,
   onClose,
   onSubmit,
 }: {
@@ -42,10 +40,7 @@ export function LehengaDetailsDialog({
     <div className="measurements-overlay" role="dialog" aria-modal="true" aria-labelledby="measurements-title">
       <div className="measurements-modal">
         <div className="measurements-modal-header">
-          <div>
-            <h2 id="measurements-title">Lehenga details</h2>
-            <p>Save fit details for {productName} before continuing.</p>
-          </div>
+          <h2 id="measurements-title">Measurements</h2>
           <button type="button" className="measurements-close" onClick={onClose} aria-label="Close details form">
             ×
           </button>
@@ -94,7 +89,7 @@ export function LehengaDetailsDialog({
 
           <button
             type="button"
-            className="product-detail-primary-button is-compact"
+            className="measurements-submit"
             onClick={() => {
               if (saveForNextTime) {
                 saveLehengaMeasurements(measurements);
@@ -103,7 +98,7 @@ export function LehengaDetailsDialog({
               onSubmit(measurements);
             }}
           >
-            {submitLabel}
+            Submit
           </button>
         </div>
       </div>

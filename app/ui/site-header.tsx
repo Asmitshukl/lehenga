@@ -12,7 +12,7 @@ import cartIcon from "@/photo/logo/dowload.svg";
 
 const navigationLinks = [
   { label: "New in", href: "/#home" },
-  { label: "Collections", href: "/categories" },
+  { label: "Categories", href: "/categories" },
   { label: "Shop all", href: "/shop-all" },
 ];
 

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { useMemo, useRef, useState } from "react";
+import type { MouseEvent, PointerEvent } from "react";
 
 import { useCart } from "./cart-provider";
 import { LehengaDetailsDialog } from "./lehenga-details-dialog";
@@ -142,7 +143,12 @@ function saveJewelleryToCart(product: StoreProduct, rentalStartDate?: string, re
       : [...currentCart, createJewelleryCartItem(product, rentalStartDate, rentalEndDate)];
 
   window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(nextCart));
-  window.dispatchEvent(new Event("storage"));
+
+  try {
+    window.dispatchEvent(new StorageEvent("storage", { key: CART_STORAGE_KEY }));
+  } catch {
+    window.dispatchEvent(new Event("storage"));
+  }
 }
 
 export function ProductDetailActions({ product }: { product: StoreProduct }) {
@@ -156,6 +162,7 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
   const [lehengaActionMode, setLehengaActionMode] = useState<LehengaActionMode>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const jewelleryActionLockRef = useRef<"cart" | "checkout" | null>(null);
   const [measurements, setMeasurements] = useState<CartItem["measurements"]>({
     upper: "",
     chest: "",
@@ -246,6 +253,10 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
   };
 
   const handleJewelleryAddToCart = () => {
+    if (jewelleryActionLockRef.current) {
+      return;
+    }
+
     if (isOutOfStock) {
       setActionSuccess(null);
       setActionError(`${product.name} is currently out of stock.`);
@@ -256,6 +267,7 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
       return;
     }
 
+    jewelleryActionLockRef.current = "cart";
     saveJewelleryToCart(product, rentalStartDate, rentalEndDate);
     setActionError(null);
     setActionSuccess(`${product.name} was added to your cart.`);
@@ -263,6 +275,10 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
   };
 
   const handleJewelleryBookNow = () => {
+    if (jewelleryActionLockRef.current) {
+      return;
+    }
+
     if (isOutOfStock) {
       setActionSuccess(null);
       setActionError(`${product.name} is currently out of stock.`);
@@ -273,6 +289,7 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
       return;
     }
 
+    jewelleryActionLockRef.current = "checkout";
     saveBuyNowDraft(createJewelleryCartItem(product, rentalStartDate, rentalEndDate));
     setActionError(null);
     setActionSuccess(null);
@@ -469,11 +486,15 @@ function JewelleryDetailActions({
   remainingInventory: number;
   isOutOfStock: boolean;
 }) {
-  const handleJewelleryAddToCart = () => {
+  const handleJewelleryAddToCart = (event?: MouseEvent<HTMLButtonElement> | PointerEvent<HTMLButtonElement>) => {
+    event?.preventDefault();
+    event?.stopPropagation();
     onAddToCart();
   };
 
-  const handleJewelleryBookNow = () => {
+  const handleJewelleryBookNow = (event?: MouseEvent<HTMLButtonElement> | PointerEvent<HTMLButtonElement>) => {
+    event?.preventDefault();
+    event?.stopPropagation();
     onBookNow();
   };
 
@@ -547,6 +568,7 @@ function JewelleryDetailActions({
         <button
           type="button"
           className="product-detail-secondary-button"
+          onPointerDown={handleJewelleryAddToCart}
           onClick={handleJewelleryAddToCart}
           disabled={product.isMock || isOutOfStock}
         >
@@ -555,6 +577,7 @@ function JewelleryDetailActions({
         <button
           type="button"
           className="product-detail-primary-button"
+          onPointerDown={handleJewelleryBookNow}
           onClick={handleJewelleryBookNow}
           disabled={product.isMock || isOutOfStock}
         >

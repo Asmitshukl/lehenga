@@ -1843,51 +1843,85 @@ button {
   z-index: 120;
   display: grid;
   place-items: center;
-  padding: 24px;
-  background: rgba(17, 17, 17, 0.42);
+  padding: 0 24px;
+  background: rgba(0, 0, 0, 0.56);
 }
 
 .measurements-modal {
-  width: min(100%, 820px);
-  max-height: calc(100vh - 48px);
+  width: min(100%, 800px);
+  max-height: calc(100vh - 28px);
   overflow: auto;
-  border-radius: 28px;
+  border-radius: 0 0 12px 12px;
   background: #fff;
-  padding: 28px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
+  padding: 24px 38px 44px;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.24);
 }
 
 .measurements-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 48px;
   margin-bottom: 18px;
 }
 
 .measurements-modal-header h2 {
   margin: 0;
-  font-size: 28px;
-}
-
-.measurements-modal-header p {
-  margin: 8px 0 0;
-  color: #6a6a6a;
+  font-size: 32px;
+  line-height: 1;
+  font-weight: 800;
 }
 
 .measurements-close {
+  position: absolute;
+  right: 0;
+  top: -4px;
   border: 0;
   background: transparent;
   color: #111;
   cursor: pointer;
-  font-size: 36px;
+  font-size: 52px;
   line-height: 1;
   padding: 0;
 }
 
 .measurements-form {
   display: grid;
-  gap: 16px;
+  gap: 18px;
+}
+
+.measurements-form .product-detail-field {
+  gap: 7px;
+  color: #000;
+  font-size: 20px;
+}
+
+.measurements-form .product-detail-field span {
+  line-height: 1.1;
+}
+
+.measurements-form .product-detail-field input,
+.measurements-form .product-detail-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 10px;
+  background: #d9dddd;
+  min-height: 50px;
+  padding: 12px 14px;
+  color: #111;
+  font: inherit;
+  font-size: 18px;
+}
+
+.measurements-form .product-detail-field textarea {
+  min-height: 50px;
+  resize: vertical;
+}
+
+.measurements-form .product-detail-field input::placeholder,
+.measurements-form .product-detail-field textarea::placeholder {
+  color: #858585;
 }
 
 .measurements-save-toggle {
@@ -1900,6 +1934,21 @@ button {
 .measurements-save-toggle input {
   width: 18px;
   height: 18px;
+}
+
+.measurements-submit {
+  justify-self: center;
+  min-width: 188px;
+  min-height: 50px;
+  margin-top: 18px;
+  border: 0;
+  border-radius: 9px;
+  background: #000;
+  color: #fff;
+  padding: 0 28px;
+  font: inherit;
+  font-size: 23px;
+  cursor: pointer;
 }
 
 .sr-only {
