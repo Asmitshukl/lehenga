@@ -583,6 +583,21 @@ export async function verifyRazorpayPayment(
   return normalizeOrder(order);
 }
 
+export async function cancelRazorpayPayment(
+  payload: {
+    orderId: string;
+  },
+  token: string,
+) {
+  const order = await storeRequest<ApiOrder>("/payments/razorpay/cancel", {
+    method: "POST",
+    body: payload,
+    token,
+  });
+
+  return normalizeOrder(order);
+}
+
 export async function submitProductReview(
   payload:
     | {

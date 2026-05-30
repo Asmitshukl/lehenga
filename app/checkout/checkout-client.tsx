@@ -16,7 +16,7 @@ import {
   markOnlinePaymentInitiated,
   markOnlinePaymentVerified,
 } from "../_lib/payment-attempts";
-import { createOrder, previewOrder, verifyRazorpayPayment } from "../_lib/store-api";
+import { cancelRazorpayPayment, createOrder, previewOrder, verifyRazorpayPayment } from "../_lib/store-api";
 import type { CartItem, LehengaMeasurements, OrderPreview } from "../_lib/store-types";
 
 declare global {
@@ -298,6 +298,21 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
     clearCart();
   }
 
+  async function abandonOnlineOrder(order: { id: string; orderNumber: string }) {
+    markOnlinePaymentAbandoned(order);
+
+    try {
+      await cancelRazorpayPayment(
+        {
+          orderId: order.id,
+        },
+        token as string,
+      );
+    } catch {
+      // Keep checkout responsive even if the cleanup request fails.
+    }
+  }
+
   async function placeOrder(paymentMethod: "ONLINE" | "PICKUP") {
     if (!token || !customer) {
       setError("Please log in before checking out.");
@@ -386,7 +401,7 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
             setSuccess(`Payment completed for ${result.order.orderNumber}.`);
             router.refresh();
           } catch (verificationError) {
-            markOnlinePaymentAbandoned(result.order);
+            await abandonOnlineOrder(result.order);
             setError(
               verificationError instanceof Error
                 ? verificationError.message
@@ -397,8 +412,8 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
           }
         },
         modal: {
-          ondismiss: () => {
-            markOnlinePaymentAbandoned(result.order);
+          ondismiss: async () => {
+            await abandonOnlineOrder(result.order);
             setSuccess(null);
             setError("Payment was not completed, so the order was not placed.");
             setSubmitting(false);
@@ -410,7 +425,7 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
       return;
     } catch (checkoutError) {
       if (paymentMethod === "ONLINE" && initiatedOnlineOrder) {
-        markOnlinePaymentAbandoned(initiatedOnlineOrder);
+        await abandonOnlineOrder(initiatedOnlineOrder);
       }
       setError(checkoutError instanceof Error ? checkoutError.message : "Failed to place your order.");
       setSubmitting(false);
