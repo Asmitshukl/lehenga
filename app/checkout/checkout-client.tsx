@@ -17,7 +17,7 @@ import {
   markOnlinePaymentVerified,
 } from "../_lib/payment-attempts";
 import { cancelRazorpayPayment, createOrder, previewOrder, verifyRazorpayPayment } from "../_lib/store-api";
-import type { CartItem, LehengaMeasurements, OrderPreview } from "../_lib/store-types";
+import type { CartItem, LehengaMeasurements, OrderPreview, StoreOrder } from "../_lib/store-types";
 
 declare global {
   interface Window {
@@ -29,10 +29,16 @@ declare global {
 
 type CheckoutFormState = {
   couponCode: string;
+  guestName: string;
+  guestPhone: string;
+  guestEmail: string;
 };
 
 const INITIAL_FORM_STATE: CheckoutFormState = {
   couponCode: "",
+  guestName: "",
+  guestPhone: "",
+  guestEmail: "",
 };
 
 function mapItemToCheckoutPayload(item: CartItem) {
@@ -125,6 +131,10 @@ function getOrderTotals(preview: OrderPreview | null, items: CartItem[]) {
     securityDeposit,
     totalAmount: subtotalAmount + securityDeposit,
   };
+}
+
+function formatOrderMoney(value?: string | number | null) {
+  return formatMoney(Number(value ?? 0));
 }
 
 function hasCompleteDates(items: CartItem[]) {
@@ -222,6 +232,7 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [completedOrder, setCompletedOrder] = useState<StoreOrder | null>(null);
 
   const checkoutItems = useMemo(() => {
     return mode === "buy-now" ? (buyNowItem ? [buyNowItem] : []) : items;
@@ -248,7 +259,7 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
 
   useEffect(() => {
     async function loadPreview() {
-      if (!token || checkoutItems.length === 0) {
+      if (checkoutItems.length === 0) {
         setLoadingPreview(false);
         setPreview(null);
         return;
@@ -314,11 +325,11 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
   }
 
   async function placeOrder(paymentMethod: "ONLINE" | "PICKUP") {
-    if (!token || !customer) {
-      setError("Please log in before checking out.");
-      return;
-    }
-
+    const checkoutName = customer
+      ? `${customer.firstName}${customer.lastName ? ` ${customer.lastName}` : ""}`
+      : form.guestName.trim();
+    const checkoutEmail = customer?.email ?? form.guestEmail.trim();
+    const checkoutPhone = customer?.phone ?? form.guestPhone.trim();
     const hasMissingDates = !hasCompleteDates(checkoutItems);
 
     if (hasMissingDates) {
@@ -326,7 +337,13 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
       return;
     }
 
-    if (paymentMethod === "ONLINE" && !window.Razorpay) {
+    if (!isLoggedIn && !checkoutPhone) {
+      setSuccess(null);
+      setError("Please enter a phone number before placing the order.");
+      return;
+    }
+
+    if (!window.Razorpay) {
       setSuccess(null);
       setError("Payment gateway is still loading. Please try again in a moment.");
       return;
@@ -335,29 +352,26 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
     setSubmitting(true);
     setError(null);
     setSuccess(null);
+    setCompletedOrder(null);
 
     let initiatedOnlineOrder: { id: string; orderNumber: string } | null = null;
 
     try {
       const result = await createOrder(
         {
-          customerName: `${customer.firstName}${customer.lastName ? ` ${customer.lastName}` : ""}`,
-          customerEmail: customer.email ?? undefined,
+          customerName: customer
+            ? checkoutName
+            : checkoutName || undefined,
+          customerEmail: checkoutEmail || undefined,
+          customerPhone: checkoutPhone,
           paymentMethod,
           items: checkoutItems.map(mapItemToCheckoutPayload),
         },
         token,
       );
 
-      if (paymentMethod === "PICKUP") {
-        clearCheckoutSource();
-        setSuccess(`Order ${result.order.orderNumber} was placed successfully. Payment will happen at pickup.`);
-        setSubmitting(false);
-        return;
-      }
-
       if (!result.razorpayOrder) {
-        throw new Error("Unable to start online payment.");
+        throw new Error("Unable to start payment.");
       }
 
       markOnlinePaymentInitiated(result.order);
@@ -377,9 +391,9 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
         description: result.razorpayOrder.description,
         order_id: result.razorpayOrder.id,
         prefill: {
-          name: `${customer.firstName}${customer.lastName ? ` ${customer.lastName}` : ""}`,
-          email: customer.email || "",
-          contact: customer.phone,
+          name: checkoutName,
+          email: checkoutEmail,
+          contact: checkoutPhone,
         },
         handler: async (paymentResponse: {
           razorpay_order_id: string;
@@ -387,7 +401,7 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
           razorpay_signature: string;
         }) => {
           try {
-            await verifyRazorpayPayment(
+            const verifiedOrder = await verifyRazorpayPayment(
               {
                 orderId: result.order.id,
                 razorpayOrderId: paymentResponse.razorpay_order_id,
@@ -398,7 +412,12 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
             );
             markOnlinePaymentVerified(result.order.id);
             clearCheckoutSource();
-            setSuccess(`Payment completed for ${result.order.orderNumber}.`);
+            setCompletedOrder(verifiedOrder);
+            setSuccess(
+              paymentMethod === "PICKUP"
+                ? `Fixed deposit paid for ${result.order.orderNumber}. Remaining rental amount is due at pickup.`
+                : `Payment completed for ${result.order.orderNumber}.`,
+            );
             router.refresh();
           } catch (verificationError) {
             await abandonOnlineOrder(result.order);
@@ -424,7 +443,7 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
       razorpay.open();
       return;
     } catch (checkoutError) {
-      if (paymentMethod === "ONLINE" && initiatedOnlineOrder) {
+      if (initiatedOnlineOrder) {
         await abandonOnlineOrder(initiatedOnlineOrder);
       }
       setError(checkoutError instanceof Error ? checkoutError.message : "Failed to place your order.");
@@ -484,6 +503,30 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
 
                 {error ? <p className="checkout-feedback checkout-feedback-error">{error}</p> : null}
                 {success ? <p className="checkout-feedback checkout-feedback-success">{success}</p> : null}
+                {completedOrder ? (
+                  <dl className="checkout-breakdown">
+                    <div>
+                      <dt>Order number</dt>
+                      <dd>{completedOrder.orderNumber}</dd>
+                    </div>
+                    <div>
+                      <dt>Customer</dt>
+                      <dd>
+                        {completedOrder.customer?.firstName ?? "Guest"}
+                        {completedOrder.customer?.phone ? ` · ${completedOrder.customer.phone}` : ""}
+                        {completedOrder.customer?.email ? ` · ${completedOrder.customer.email}` : ""}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Amount paid</dt>
+                      <dd>{formatOrderMoney(completedOrder.amountPaid)}</dd>
+                    </div>
+                    <div>
+                      <dt>Due at pickup</dt>
+                      <dd>{formatOrderMoney(completedOrder.amountDueAtPickup)}</dd>
+                    </div>
+                  </dl>
+                ) : null}
               </div>
             </div>
 
@@ -496,20 +539,60 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
                 <strong>{loadingPreview ? "Loading..." : formatMoney(totals.totalAmount)}</strong>
               </div>
 
-              {!isLoggedIn ? (
-                <div className="checkout-empty-state">
-                  <p>Please log in before continuing.</p>
-                  <div className="checkout-auth-actions">
-                    <Link href="/login" className="checkout-button checkout-button-primary">
-                      Login
-                    </Link>
-                    <Link href="/signup" className="checkout-button checkout-button-secondary">
-                      Signup
-                    </Link>
+              <div className="checkout-summary-stack">
+                {!isLoggedIn ? (
+                  <div className="checkout-section">
+                    <div className="checkout-section-head">
+                      <h2>Contact details</h2>
+                      <span>Guest checkout</span>
+                    </div>
+                    <div className="checkout-form-grid">
+                      <label className="checkout-input-field">
+                        <span>Name</span>
+                        <input
+                          type="text"
+                          placeholder="Your name"
+                          value={form.guestName}
+                          onChange={(event) => setForm((current) => ({ ...current, guestName: event.target.value }))}
+                        />
+                      </label>
+                      <label className="checkout-input-field">
+                        <span>Phone number</span>
+                        <input
+                          type="tel"
+                          required
+                          placeholder="Phone number"
+                          value={form.guestPhone}
+                          onChange={(event) => setForm((current) => ({ ...current, guestPhone: event.target.value }))}
+                        />
+                      </label>
+                      <label className="checkout-input-field">
+                        <span>Email</span>
+                        <input
+                          type="email"
+                          placeholder="Optional email"
+                          value={form.guestEmail}
+                          onChange={(event) => setForm((current) => ({ ...current, guestEmail: event.target.value }))}
+                        />
+                      </label>
+                    </div>
+                    <dl className="checkout-breakdown">
+                      <div>
+                        <dt>Name</dt>
+                        <dd>{form.guestName.trim() || "Guest"}</dd>
+                      </div>
+                      <div>
+                        <dt>Phone</dt>
+                        <dd>{form.guestPhone.trim() || "Not added"}</dd>
+                      </div>
+                      <div>
+                        <dt>Email</dt>
+                        <dd>{form.guestEmail.trim() || "Not added"}</dd>
+                      </div>
+                    </dl>
                   </div>
-                </div>
-              ) : (
-                <div className="checkout-summary-stack">
+                ) : null}
+
                   <div className="checkout-summary-list">
                     {checkoutItems.length > 0 ? (
                       checkoutItems.map((item) => (
@@ -580,7 +663,7 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
                     disabled={submitting}
                     onClick={() => placeOrder("PICKUP")}
                   >
-                    Pay at Pickup
+                    Pay Fixed Deposit
                   </button>
 
                   <div className="checkout-security">
@@ -591,7 +674,6 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
                     </div>
                   </div>
                 </div>
-              )}
             </aside>
           </div>
         </div>

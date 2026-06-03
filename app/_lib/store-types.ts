@@ -154,6 +154,8 @@ export type StoreOrder = {
     rentalDays?: number;
     lineTotal: string;
     depositAmount?: string;
+    imageUrl?: string;
+    imageAltText?: string;
     measurements?: LehengaMeasurements | null;
   }>;
 };

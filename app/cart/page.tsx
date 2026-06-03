@@ -7,7 +7,6 @@ import { useState } from "react";
 import { LehengaDetailsDialog } from "../_components/lehenga-details-dialog";
 import { StoreBreadcrumb } from "../_components/store-breadcrumb";
 import { useCart } from "../_components/cart-provider";
-import { useCustomerAuth } from "../_components/customer-auth-provider";
 import type { CartItem, LehengaMeasurements } from "../_lib/store-types";
 import { SiteFooter } from "../ui/site-footer";
 import { SiteHeader } from "../ui/site-header";
@@ -54,7 +53,6 @@ function formatMeasurementSummary(measurements?: LehengaMeasurements) {
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, updateSize, updateDates, updateMeasurements, clearCart } = useCart();
-  const { isLoggedIn } = useCustomerAuth();
   const [editingItemKey, setEditingItemKey] = useState<string | null>(null);
 
   const totals = items.reduce(
@@ -231,33 +229,19 @@ export default function CartPage() {
               <span>Total: RS {totals.grandTotal.toLocaleString("en-IN")}</span>
             </div>
 
-            {!isLoggedIn ? (
-              <div className="cart-empty-state">
-                <p>Please log in before continuing to checkout.</p>
-                <div className="cart-auth-actions">
-                  <Link href="/login" className="cart-primary-button">
-                    Login
-                  </Link>
-                  <Link href="/signup" className="cart-secondary-button">
-                    Signup
-                  </Link>
-                </div>
+            <div className="checkout-form">
+              <div className="cart-summary-breakdown">
+                <p>Rental subtotal: RS {totals.subtotal.toLocaleString("en-IN")}</p>
+                <p>Security deposit: RS {totals.depositTotal.toLocaleString("en-IN")}</p>
+                <p>
+                  <strong>Grand total: RS {totals.grandTotal.toLocaleString("en-IN")}</strong>
+                </p>
               </div>
-            ) : (
-              <div className="checkout-form">
-                <div className="cart-summary-breakdown">
-                  <p>Rental subtotal: RS {totals.subtotal.toLocaleString("en-IN")}</p>
-                  <p>Security deposit: RS {totals.depositTotal.toLocaleString("en-IN")}</p>
-                  <p>
-                    <strong>Grand total: RS {totals.grandTotal.toLocaleString("en-IN")}</strong>
-                  </p>
-                </div>
 
-                <Link href="/checkout?mode=cart" className="cart-primary-button">
-                  Proceed to checkout
-                </Link>
-              </div>
-            )}
+              <Link href="/checkout?mode=cart" className="cart-primary-button">
+                Proceed to checkout
+              </Link>
+            </div>
           </div>
         </div>
       </section>

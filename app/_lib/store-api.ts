@@ -138,6 +138,12 @@ type ApiOrderItem = {
   measurementArmHole?: string | null;
   measurementMori?: string | null;
   measurementNotes?: string | null;
+  lehenga?: {
+    images?: Array<{ imageUrl: string; altText?: string | null }>;
+  } | null;
+  jewellery?: {
+    images?: Array<{ imageUrl: string; altText?: string | null }>;
+  } | null;
 };
 
 type ApiOrder = Omit<StoreOrder, "items"> & {
@@ -232,6 +238,8 @@ function normalizeMeasurements(item: ApiOrderItem): LehengaMeasurements | undefi
 }
 
 function normalizeOrderItem(item: ApiOrderItem) {
+  const productImage = item.lehenga?.images?.[0] ?? item.jewellery?.images?.[0] ?? null;
+
   return {
     id: item.id,
     itemType: item.itemType,
@@ -244,6 +252,8 @@ function normalizeOrderItem(item: ApiOrderItem) {
     rentalDays: item.rentalDays,
     lineTotal: item.lineTotal,
     depositAmount: item.depositAmount,
+    imageUrl: productImage?.imageUrl,
+    imageAltText: productImage?.altText ?? undefined,
     measurements: normalizeMeasurements(item),
   };
 }
@@ -486,6 +496,7 @@ export async function createOrder(
   payload: {
     customerName?: string;
     customerEmail?: string;
+    customerPhone?: string;
     paymentMethod: "ONLINE" | "PICKUP";
     specialInstructions?: string;
     items: Array<
@@ -514,7 +525,7 @@ export async function createOrder(
         }
     >;
   },
-  token: string,
+  token?: string | null,
 ) {
   const result = await storeRequest<{ order: ApiOrder; razorpayOrder?: CheckoutOrderResponse["razorpayOrder"] }>("/orders", {
     method: "POST",
@@ -556,7 +567,7 @@ export async function previewOrder(
         }
     >;
   },
-  token: string,
+  token?: string | null,
 ) {
   return storeRequest<OrderPreview>("/orders/preview", {
     method: "POST",
@@ -572,7 +583,7 @@ export async function verifyRazorpayPayment(
     razorpayPaymentId: string;
     razorpaySignature: string;
   },
-  token: string,
+  token?: string | null,
 ) {
   const order = await storeRequest<ApiOrder>("/payments/razorpay/verify", {
     method: "POST",
@@ -587,7 +598,7 @@ export async function cancelRazorpayPayment(
   payload: {
     orderId: string;
   },
-  token: string,
+  token?: string | null,
 ) {
   const order = await storeRequest<ApiOrder>("/payments/razorpay/cancel", {
     method: "POST",
