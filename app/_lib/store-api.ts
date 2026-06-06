@@ -521,16 +521,11 @@ export async function createOrder(
   },
   token?: string | null,
 ) {
-  const result = await storeRequest<{ order: ApiOrder; razorpayOrder?: CheckoutOrderResponse["razorpayOrder"] }>("/orders", {
+  return storeRequest<CheckoutOrderResponse>("/orders", {
     method: "POST",
     body: payload,
     token,
   });
-
-  return {
-    ...result,
-    order: normalizeOrder(result.order),
-  };
 }
 
 export async function previewOrder(
@@ -572,7 +567,7 @@ export async function previewOrder(
 
 export async function verifyRazorpayPayment(
   payload: {
-    orderId: string;
+    paymentAttemptId: string;
     razorpayOrderId: string;
     razorpayPaymentId: string;
     razorpaySignature: string;
@@ -590,17 +585,15 @@ export async function verifyRazorpayPayment(
 
 export async function cancelRazorpayPayment(
   payload: {
-    orderId: string;
+    paymentAttemptId: string;
   },
   token?: string | null,
 ) {
-  const order = await storeRequest<ApiOrder>("/payments/razorpay/cancel", {
+  return storeRequest<{ id: string; status: string }>("/payments/razorpay/cancel", {
     method: "POST",
     body: payload,
     token,
   });
-
-  return normalizeOrder(order);
 }
 
 export async function submitProductReview(

@@ -180,8 +180,11 @@ export type OrderPreview = {
 };
 
 export type CheckoutOrderResponse = {
-  order: StoreOrder;
-  razorpayOrder?: {
+  paymentAttempt: {
+    id: string;
+    expiresAt: string;
+  };
+  razorpayOrder: {
     id: string;
     amount: number;
     currency: string;

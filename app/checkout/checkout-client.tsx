@@ -11,11 +11,6 @@ import logo from "@/photo/logo/hnK8aSlqZBv5pOIXU5O0NeeQfQs.png";
 import { useCart } from "../_components/cart-provider";
 import { useCustomerAuth } from "../_components/customer-auth-provider";
 import { clearBuyNowDraft, readBuyNowDraft, saveBuyNowDraft } from "../_lib/checkout-draft";
-import {
-  markOnlinePaymentAbandoned,
-  markOnlinePaymentInitiated,
-  markOnlinePaymentVerified,
-} from "../_lib/payment-attempts";
 import { cancelRazorpayPayment, createOrder, previewOrder, verifyRazorpayPayment } from "../_lib/store-api";
 import { getCatalogImageUrl } from "../_lib/catalog-image-url";
 import type { CartItem, LehengaMeasurements, OrderPreview, StoreOrder } from "../_lib/store-types";
@@ -316,15 +311,13 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
     clearCart();
   }
 
-  async function abandonOnlineOrder(order: { id: string; orderNumber: string }) {
-    markOnlinePaymentAbandoned(order);
-
+  async function abandonPaymentAttempt(paymentAttemptId: string) {
     try {
       await cancelRazorpayPayment(
         {
-          orderId: order.id,
+          paymentAttemptId,
         },
-        token as string,
+        token,
       );
     } catch {
       // Keep checkout responsive even if the cleanup request fails.
@@ -361,7 +354,7 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
     setSuccess(null);
     setCompletedOrder(null);
 
-    let initiatedOnlineOrder: { id: string; orderNumber: string } | null = null;
+    let initiatedPaymentAttemptId: string | null = null;
 
     try {
       const result = await createOrder(
@@ -377,12 +370,7 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
         token,
       );
 
-      if (!result.razorpayOrder) {
-        throw new Error("Unable to start payment.");
-      }
-
-      markOnlinePaymentInitiated(result.order);
-      initiatedOnlineOrder = result.order;
+      initiatedPaymentAttemptId = result.paymentAttempt.id;
 
       const Razorpay = window.Razorpay;
 
@@ -390,6 +378,7 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
         throw new Error("Payment gateway is still loading. Please try again in a moment.");
       }
 
+      let paymentSubmitted = false;
       const razorpay = new Razorpay({
         key: result.razorpayOrder.keyId,
         amount: result.razorpayOrder.amount,
@@ -407,31 +396,33 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
           razorpay_payment_id: string;
           razorpay_signature: string;
         }) => {
+          paymentSubmitted = true;
+
           try {
             const verifiedOrder = await verifyRazorpayPayment(
               {
-                orderId: result.order.id,
+                paymentAttemptId: result.paymentAttempt.id,
                 razorpayOrderId: paymentResponse.razorpay_order_id,
                 razorpayPaymentId: paymentResponse.razorpay_payment_id,
                 razorpaySignature: paymentResponse.razorpay_signature,
               },
               token,
             );
-            markOnlinePaymentVerified(result.order.id);
+            initiatedPaymentAttemptId = null;
             clearCheckoutSource();
             setCompletedOrder(verifiedOrder);
             setSuccess(
               paymentMethod === "PICKUP"
-                ? `Fixed deposit paid for ${result.order.orderNumber}. Remaining rental amount is due at pickup.`
-                : `Payment completed for ${result.order.orderNumber}.`,
+                ? `Fixed deposit paid for ${verifiedOrder.orderNumber}. Remaining rental amount is due at pickup.`
+                : `Payment completed for ${verifiedOrder.orderNumber}.`,
             );
             router.refresh();
           } catch (verificationError) {
-            await abandonOnlineOrder(result.order);
+            initiatedPaymentAttemptId = null;
             setError(
               verificationError instanceof Error
-                ? verificationError.message
-                : "Payment could not be verified, so the order was not completed.",
+                ? `${verificationError.message} Your payment attempt was kept for confirmation; please contact support before paying again.`
+                : "Payment confirmation is pending. Please contact support before paying again.",
             );
           } finally {
             setSubmitting(false);
@@ -439,7 +430,12 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
         },
         modal: {
           ondismiss: async () => {
-            await abandonOnlineOrder(result.order);
+            if (paymentSubmitted) {
+              return;
+            }
+
+            await abandonPaymentAttempt(result.paymentAttempt.id);
+            initiatedPaymentAttemptId = null;
             setSuccess(null);
             setError("Payment was not completed, so the order was not placed.");
             setSubmitting(false);
@@ -450,8 +446,8 @@ export function CheckoutClient({ mode }: { mode: "buy-now" | "cart" }) {
       razorpay.open();
       return;
     } catch (checkoutError) {
-      if (initiatedOnlineOrder) {
-        await abandonOnlineOrder(initiatedOnlineOrder);
+      if (initiatedPaymentAttemptId) {
+        await abandonPaymentAttempt(initiatedPaymentAttemptId);
       }
       setError(checkoutError instanceof Error ? checkoutError.message : "Failed to place your order.");
       setSubmitting(false);
