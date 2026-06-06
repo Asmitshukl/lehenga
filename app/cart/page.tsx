@@ -1,6 +1,8 @@
 "use client";
 
 import Image, { type StaticImageData } from "next/image";
+
+import { getCatalogImageUrl } from "@/app/_lib/catalog-image-url";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -14,7 +16,7 @@ import { SiteHeader } from "../ui/site-header";
 function ProductImage({ image, name }: { image: string | StaticImageData; name: string }) {
   if (typeof image === "string") {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={image} alt={name} className="product-card-image" />;
+    return <img src={getCatalogImageUrl(image)} alt={name} className="product-card-image" loading="lazy" decoding="async" />;
   }
 
   return <Image src={image} alt={name} className="product-card-image" />;

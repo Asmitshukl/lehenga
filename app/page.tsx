@@ -5,11 +5,12 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import heroImage from "@/photo/caiCUuW1TZ7czKzGUaaidkP3aAc.png";
+import { CatalogError, CatalogLoader } from "@/app/_components/catalog-request-state";
 import { StoreFaqSection, StorePromoBanner } from "@/app/_components/store-marketing-sections";
 import { SiteFooter } from "@/app/ui/site-footer";
 import { SiteHeader } from "@/app/ui/site-header";
 import { StoreProductCard } from "./_components/store-product-card";
-import { fetchFeaturedCategories, fetchLatestProducts } from "./_lib/store-api";
+import { fetchFeaturedCategoriesOrThrow, fetchLatestProductsOrThrow } from "./_lib/store-api";
 import type { StoreCategory, StoreProduct } from "./_lib/store-types";
 
 function ProductSection({
@@ -62,22 +63,36 @@ export default function Home() {
   const [latestDrop, setLatestDrop] = useState<StoreProduct[]>([]);
   const [categories, setCategories] = useState<StoreCategory[]>([]);
   const [menuOpenSignal, setMenuOpenSignal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retrySignal, setRetrySignal] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadHomepage = async () => {
-      const [liveLatestDrop, featuredCategories] = await Promise.all([
-        fetchLatestProducts(4),
-        fetchFeaturedCategories(5),
-      ]);
+      setLoading(true);
+      setError(null);
 
-      if (cancelled) {
-        return;
+      try {
+        const [liveLatestDrop, featuredCategories] = await Promise.all([
+          fetchLatestProductsOrThrow(4),
+          fetchFeaturedCategoriesOrThrow(5),
+        ]);
+
+        if (!cancelled) {
+          setLatestDrop(liveLatestDrop);
+          setCategories(featuredCategories);
+        }
+      } catch (reason) {
+        if (!cancelled) {
+          setError(reason instanceof Error ? reason.message : "The catalog service is unavailable.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-
-      setLatestDrop(liveLatestDrop);
-      setCategories(featuredCategories);
     };
 
     void loadHomepage();
@@ -85,7 +100,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [retrySignal]);
 
   return (
     <main id="home" className="lehenga-page">
@@ -122,9 +137,14 @@ export default function Home() {
         </div>
       </section>
 
-      <ProductSection id="categories" title="Latest Drop" href="/shop-all" products={latestDrop} />
+      {loading ? <CatalogLoader label="Loading the latest collection" /> : null}
+      {error ? <CatalogError message={error} onRetry={() => setRetrySignal((value) => value + 1)} /> : null}
 
-      {categories.map((category, index) => (
+      {!loading && !error ? (
+        <ProductSection id="categories" title="Latest Drop" href="/shop-all" products={latestDrop} />
+      ) : null}
+
+      {!loading && !error ? categories.map((category, index) => (
         <ProductSection
           key={category.id}
           id={`category-${index}-${category.slug}`}
@@ -132,7 +152,7 @@ export default function Home() {
           href="/categories"
           products={getLatestSectionProducts(category.products)}
         />
-      ))}
+      )) : null}
 
       <StorePromoBanner />
       <StoreFaqSection />

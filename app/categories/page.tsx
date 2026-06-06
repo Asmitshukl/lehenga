@@ -3,23 +3,40 @@
 import { useEffect, useState } from "react";
 
 import { StoreBreadcrumb } from "@/app/_components/store-breadcrumb";
+import { CatalogError, CatalogLoader } from "@/app/_components/catalog-request-state";
 import { StoreProductCard } from "@/app/_components/store-product-card";
-import { fetchCategories } from "@/app/_lib/store-api";
+import { fetchCategoriesOrThrow } from "@/app/_lib/store-api";
 import type { StoreCategory } from "@/app/_lib/store-types";
 import { SiteFooter } from "@/app/ui/site-footer";
 import { SiteHeader } from "@/app/ui/site-header";
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<StoreCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retrySignal, setRetrySignal] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadCategories = async () => {
-      const data = await fetchCategories();
+      setLoading(true);
+      setError(null);
 
-      if (!cancelled) {
-        setCategories(data);
+      try {
+        const data = await fetchCategoriesOrThrow();
+
+        if (!cancelled) {
+          setCategories(data);
+        }
+      } catch (reason) {
+        if (!cancelled) {
+          setError(reason instanceof Error ? reason.message : "The catalog service is unavailable.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
@@ -28,7 +45,7 @@ export default function CategoriesPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [retrySignal]);
 
   return (
     <main className="lehenga-page">
@@ -36,7 +53,10 @@ export default function CategoriesPage() {
       <section className="shopall-section">
         <StoreBreadcrumb items={[{ label: "Home", href: "/#home" }, { label: "Categories" }]} />
 
-        {categories.map((category) => {
+        {loading ? <CatalogLoader label="Loading categories" /> : null}
+        {error ? <CatalogError message={error} onRetry={() => setRetrySignal((value) => value + 1)} /> : null}
+
+        {!loading && !error ? categories.map((category) => {
           const lehengaCount = category.products.filter((product) => product.kind === "LEHENGA").length;
           const jewelleryCount = category.products.filter((product) => product.kind === "JEWELLERY").length;
 
@@ -68,9 +88,9 @@ export default function CategoriesPage() {
               )}
             </section>
           );
-        })}
+        }) : null}
 
-        {categories.length === 0 ? (
+        {!loading && !error && categories.length === 0 ? (
           <section className="catalog-section">
             <div className="product-grid-shell">
               <div className="cart-empty-state">

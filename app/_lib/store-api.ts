@@ -355,22 +355,22 @@ function dedupeProducts(products: StoreProduct[]) {
   });
 }
 
+export async function fetchLiveProductsOrThrow(): Promise<StoreProduct[]> {
+  const products = await storeRequest<ApiLehenga[]>("/lehengas");
+  return dedupeProducts(products.map(normalizeLehenga));
+}
+
 export async function fetchLiveProducts(): Promise<StoreProduct[]> {
-  try {
-    const products = await storeRequest<ApiLehenga[]>("/lehengas");
-    return dedupeProducts(products.map(normalizeLehenga));
-  } catch {
-    return [];
-  }
+  return fetchLiveProductsOrThrow().catch(() => []);
+}
+
+export async function fetchJewelleryProductsOrThrow(): Promise<StoreProduct[]> {
+  const products = await storeRequest<ApiJewellery[]>("/jewellery");
+  return dedupeProducts(products.map(normalizeJewellery));
 }
 
 export async function fetchJewelleryProducts(): Promise<StoreProduct[]> {
-  try {
-    const products = await storeRequest<ApiJewellery[]>("/jewellery");
-    return dedupeProducts(products.map(normalizeJewellery));
-  } catch {
-    return [];
-  }
+  return fetchJewelleryProductsOrThrow().catch(() => []);
 }
 
 export async function fetchLehengaBySlug(slug: string): Promise<StoreProduct | null> {
@@ -391,71 +391,65 @@ export async function fetchJewelleryBySlug(slug: string): Promise<StoreProduct |
   }
 }
 
-export async function fetchCategories(limit?: number): Promise<StoreCategory[]> {
-  try {
-    const query = limit ? `?limit=${limit}` : "";
-    const categories = await storeRequest<ApiCategory[]>(`/categories${query}`);
+function normalizeCategory(category: ApiCategory): StoreCategory {
+  return {
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
+    isFeatured: category.isFeatured ?? false,
+    description: category.description ?? undefined,
+    products: dedupeProducts([
+      ...category.lehengas.map(normalizeLehenga),
+      ...category.jewelleryItems.map(normalizeJewellery),
+    ]),
+  };
+}
 
-    return categories.map((category) => ({
-      id: category.id,
-      name: category.name,
-      slug: category.slug,
-      isFeatured: category.isFeatured ?? false,
-      description: category.description ?? undefined,
-      products: dedupeProducts([
-        ...category.lehengas.map(normalizeLehenga),
-        ...category.jewelleryItems.map(normalizeJewellery),
-      ]),
-    }));
-  } catch {
-    return [];
+export async function fetchCategoriesOrThrow(limit?: number): Promise<StoreCategory[]> {
+  const query = limit ? `?limit=${limit}` : "";
+  const categories = await storeRequest<ApiCategory[]>(`/categories${query}`);
+  return categories.map(normalizeCategory);
+}
+
+export async function fetchCategories(limit?: number): Promise<StoreCategory[]> {
+  return fetchCategoriesOrThrow(limit).catch(() => []);
+}
+
+export async function fetchFeaturedCategoriesOrThrow(limit?: number): Promise<StoreCategory[]> {
+  const params = new URLSearchParams({
+    featured: "true",
+  });
+
+  if (limit) {
+    params.set("limit", String(limit));
   }
+
+  const categories = await storeRequest<ApiCategory[]>(`/categories?${params.toString()}`);
+  return categories.map(normalizeCategory);
 }
 
 export async function fetchFeaturedCategories(limit?: number): Promise<StoreCategory[]> {
-  try {
-    const params = new URLSearchParams({
-      featured: "true",
-    });
+  return fetchFeaturedCategoriesOrThrow(limit).catch(() => []);
+}
 
-    if (limit) {
-      params.set("limit", String(limit));
-    }
+export async function fetchLatestProductsOrThrow(limit = 4): Promise<StoreProduct[]> {
+  const [lehengas, jewellery] = await Promise.all([
+    fetchLiveProductsOrThrow(),
+    fetchJewelleryProductsOrThrow(),
+  ]);
 
-    const categories = await storeRequest<ApiCategory[]>(`/categories?${params.toString()}`);
+  return [...lehengas, ...jewellery]
+    .sort((left, right) => {
+      const leftTime = left.createdAt ? new Date(left.createdAt).getTime() : 0;
+      const rightTime = right.createdAt ? new Date(right.createdAt).getTime() : 0;
 
-    return categories
-      .map((category) => ({
-        id: category.id,
-        name: category.name,
-        slug: category.slug,
-        isFeatured: category.isFeatured ?? false,
-        description: category.description ?? undefined,
-        products: dedupeProducts([
-          ...category.lehengas.map(normalizeLehenga),
-          ...category.jewelleryItems.map(normalizeJewellery),
-        ]),
-      }));
-  } catch {
-    return [];
-  }
+      return rightTime - leftTime;
+    })
+    .slice(0, limit);
 }
 
 export async function fetchLatestProducts(limit = 4): Promise<StoreProduct[]> {
-  try {
-    const [lehengas, jewellery] = await Promise.all([fetchLiveProducts(), fetchJewelleryProducts()]);
-
-    return [...lehengas, ...jewellery]
-      .sort((left, right) => {
-        const leftTime = left.createdAt ? new Date(left.createdAt).getTime() : 0;
-        const rightTime = right.createdAt ? new Date(right.createdAt).getTime() : 0;
-
-        return rightTime - leftTime;
-      })
-      .slice(0, limit);
-  } catch {
-    return [];
-  }
+  return fetchLatestProductsOrThrow(limit).catch(() => []);
 }
 
 export async function signupCustomer(payload: {

@@ -17,6 +17,7 @@ import {
   markOnlinePaymentVerified,
 } from "../_lib/payment-attempts";
 import { cancelRazorpayPayment, createOrder, previewOrder, verifyRazorpayPayment } from "../_lib/store-api";
+import { getCatalogImageUrl } from "../_lib/catalog-image-url";
 import type { CartItem, LehengaMeasurements, OrderPreview, StoreOrder } from "../_lib/store-types";
 
 declare global {
@@ -171,7 +172,13 @@ function CheckoutItemCard({ item, allowDateEdit, onDateChange }: { item: CartIte
     <article className="checkout-item-card">
       <div className="checkout-item-image-wrap">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={typeof item.image === "string" ? item.image : item.image.src} alt={item.name} className="checkout-item-image" />
+        <img
+          src={typeof item.image === "string" ? getCatalogImageUrl(item.image) : item.image.src}
+          alt={item.name}
+          className="checkout-item-image"
+          loading="lazy"
+          decoding="async"
+        />
       </div>
       <div className="checkout-item-copy">
         <div className="checkout-item-head">
