@@ -172,7 +172,7 @@ async function storeRequest<T>(path: string, options: RequestOptions = {}): Prom
       method: options.method ?? "GET",
       headers,
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-      cache: "no-store",
+      cache: options.method && options.method !== "GET" ? "no-store" : "default",
     });
 
     const rawText = await response.text();
@@ -433,12 +433,10 @@ export async function fetchFeaturedCategories(limit?: number): Promise<StoreCate
 }
 
 export async function fetchLatestProductsOrThrow(limit = 4): Promise<StoreProduct[]> {
-  const [lehengas, jewellery] = await Promise.all([
-    fetchLiveProductsOrThrow(),
-    fetchJewelleryProductsOrThrow(),
-  ]);
+  const lehengas = await storeRequest<ApiLehenga[]>("/lehengas?featured=true");
 
-  return [...lehengas, ...jewellery]
+  return lehengas
+    .map(normalizeLehenga)
     .sort((left, right) => {
       const leftTime = left.createdAt ? new Date(left.createdAt).getTime() : 0;
       const rightTime = right.createdAt ? new Date(right.createdAt).getTime() : 0;
@@ -446,6 +444,27 @@ export async function fetchLatestProductsOrThrow(limit = 4): Promise<StoreProduc
       return rightTime - leftTime;
     })
     .slice(0, limit);
+}
+
+export async function fetchProductAvailability(input: {
+  itemType: ProductType;
+  productId: string;
+  sizeId?: string;
+  startDate: string;
+  endDate: string;
+}) {
+  const params = new URLSearchParams({
+    itemType: input.itemType,
+    productId: input.productId,
+    startDate: input.startDate,
+    endDate: input.endDate,
+  });
+
+  if (input.sizeId) {
+    params.set("sizeId", input.sizeId);
+  }
+
+  return storeRequest<{ available: boolean; quantityAvailable: number }>(`/availability?${params.toString()}`);
 }
 
 export async function fetchLatestProducts(limit = 4): Promise<StoreProduct[]> {

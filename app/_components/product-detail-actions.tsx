@@ -2,13 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import type { Dispatch, RefObject, SetStateAction } from "react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent, PointerEvent } from "react";
 
 import { useCart } from "./cart-provider";
 import { LehengaDetailsDialog } from "./lehenga-details-dialog";
 import { getRemainingInventory, isProductOutOfStock } from "../_lib/product-inventory";
 import { saveBuyNowDraft } from "../_lib/checkout-draft";
+import { fetchProductAvailability } from "../_lib/store-api";
 import type { CartItem, StoreProduct } from "../_lib/store-types";
 
 type LehengaActionMode = "cart" | "buy-now" | null;
@@ -162,6 +163,7 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
   const [lehengaActionMode, setLehengaActionMode] = useState<LehengaActionMode>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [dateAvailability, setDateAvailability] = useState<{ available: boolean; quantityAvailable: number } | null>(null);
   const jewelleryActionLockRef = useRef<"cart" | "checkout" | null>(null);
   const [measurements, setMeasurements] = useState<CartItem["measurements"]>({
     upper: "",
@@ -176,6 +178,45 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
   const formattedEndDate = useMemo(() => formatSelectedDate(rentalEndDate), [rentalEndDate]);
   const remainingInventory = getRemainingInventory(product);
   const isOutOfStock = isProductOutOfStock(product);
+  const unavailableForDates = Boolean(dateAvailability && !dateAvailability.available);
+  const checkingAvailability =
+    Boolean(rentalStartDate && rentalEndDate) &&
+    !hasInvalidDateRange(rentalStartDate, rentalEndDate) &&
+    dateAvailability === null &&
+    actionError === null;
+
+  useEffect(() => {
+    if (!rentalStartDate || !rentalEndDate || hasInvalidDateRange(rentalStartDate, rentalEndDate)) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void fetchProductAvailability({
+      itemType: product.kind,
+      productId: product.id,
+      sizeId: product.kind === "LEHENGA" ? selectedSizeId : undefined,
+      startDate: rentalStartDate,
+      endDate: rentalEndDate,
+    })
+      .then((result) => {
+        if (!cancelled) {
+          setDateAvailability(result);
+        }
+      })
+      .catch((availabilityError) => {
+        if (!cancelled) {
+          setDateAvailability(null);
+          setActionError(
+            availabilityError instanceof Error ? availabilityError.message : "Could not check availability.",
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [product.id, product.kind, rentalEndDate, rentalStartDate, selectedSizeId]);
 
   const validateSelectedDateRange = () => {
     if (hasInvalidDateRange(rentalStartDate, rentalEndDate)) {
@@ -188,7 +229,7 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
   };
 
   const handleAddToCart = (nextMeasurements?: CartItem["measurements"]) => {
-    if (isOutOfStock) {
+    if (isOutOfStock || unavailableForDates) {
       setActionSuccess(null);
       setActionError(`${product.name} is currently out of stock.`);
       return;
@@ -208,7 +249,7 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
   };
 
   const proceedToCheckout = (nextMeasurements?: CartItem["measurements"]) => {
-    if (isOutOfStock) {
+    if (isOutOfStock || unavailableForDates) {
       setActionSuccess(null);
       setActionError(`${product.name} is currently out of stock.`);
       return;
@@ -257,7 +298,7 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
       return;
     }
 
-    if (isOutOfStock) {
+    if (isOutOfStock || unavailableForDates) {
       setActionSuccess(null);
       setActionError(`${product.name} is currently out of stock.`);
       return;
@@ -279,7 +320,7 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
       return;
     }
 
-    if (isOutOfStock) {
+    if (isOutOfStock || unavailableForDates) {
       setActionSuccess(null);
       setActionError(`${product.name} is currently out of stock.`);
       return;
@@ -316,6 +357,8 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
         setActionSuccess={setActionSuccess}
         remainingInventory={remainingInventory}
         isOutOfStock={isOutOfStock}
+        dateAvailability={dateAvailability}
+        checkingAvailability={checkingAvailability}
       />
     );
   }
@@ -350,6 +393,7 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
             value={rentalStartDate}
             onChange={(event) => {
               setRentalStartDate(event.target.value);
+              setDateAvailability(null);
               setActionError(null);
               setActionSuccess(null);
             }}
@@ -362,6 +406,7 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
             min={rentalStartDate || undefined}
             onChange={(event) => {
               setRentalEndDate(event.target.value);
+              setDateAvailability(null);
               setActionError(null);
               setActionSuccess(null);
             }}
@@ -371,7 +416,13 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
         {product.kind === "LEHENGA" && product.sizes.length > 1 ? (
           <label className="product-detail-field">
             <span>Select size</span>
-            <select value={selectedSizeId} onChange={(event) => setSelectedSizeId(event.target.value)}>
+            <select
+              value={selectedSizeId}
+              onChange={(event) => {
+                setSelectedSizeId(event.target.value);
+                setDateAvailability(null);
+              }}
+            >
               {product.sizes.map((size) => (
                 <option key={size.id} value={size.id}>
                   {size.sizeLabel} · {size.quantityAvailable} available
@@ -382,10 +433,23 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
         ) : null}
 
         <p className="product-detail-availability">
-          Status: <strong>{product.isMock ? "Preview" : isOutOfStock ? "Out of stock" : "Available"}</strong>
+          Status:{" "}
+          <strong>
+            {product.isMock
+              ? "Preview"
+              : checkingAvailability
+                ? "Checking selected dates..."
+                : unavailableForDates
+                  ? "Unavailable for selected dates"
+                  : dateAvailability
+                    ? "Available for selected dates"
+                    : isOutOfStock
+                      ? "Out of stock"
+                      : "Select dates to confirm"}
+          </strong>
         </p>
         <p className="product-detail-availability">
-          Remaining: <strong>{remainingInventory}</strong>
+          Remaining: <strong>{dateAvailability?.quantityAvailable ?? remainingInventory}</strong>
         </p>
         <p className="product-detail-price-emphasis">
           Price: <strong>RS {product.rentalPricePerDay.toLocaleString("en-IN")}/night</strong>
@@ -408,7 +472,7 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
 
               handleAddToCart();
             }}
-            disabled={product.isMock || isOutOfStock}
+            disabled={product.isMock || isOutOfStock || unavailableForDates || checkingAvailability}
           >
             Add to Cart
           </button>
@@ -416,7 +480,7 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
             type="button"
             className="product-detail-primary-button"
             onClick={handleBookNow}
-            disabled={product.isMock || isOutOfStock}
+            disabled={product.isMock || isOutOfStock || unavailableForDates || checkingAvailability}
           >
             Book Now
           </button>
@@ -467,6 +531,8 @@ function JewelleryDetailActions({
   setActionSuccess,
   remainingInventory,
   isOutOfStock,
+  dateAvailability,
+  checkingAvailability,
 }: {
   product: StoreProduct;
   onAddToCart: () => void;
@@ -485,6 +551,8 @@ function JewelleryDetailActions({
   setActionSuccess: Dispatch<SetStateAction<string | null>>;
   remainingInventory: number;
   isOutOfStock: boolean;
+  dateAvailability: { available: boolean; quantityAvailable: number } | null;
+  checkingAvailability: boolean;
 }) {
   const handleJewelleryAddToCart = (event?: MouseEvent<HTMLButtonElement> | PointerEvent<HTMLButtonElement>) => {
     event?.preventDefault();
@@ -550,10 +618,23 @@ function JewelleryDetailActions({
       </div>
 
       <p className="product-detail-availability">
-        Status: <strong>{product.isMock ? "Preview" : isOutOfStock ? "Out of stock" : "Available"}</strong>
+        Status:{" "}
+        <strong>
+          {product.isMock
+            ? "Preview"
+            : checkingAvailability
+              ? "Checking selected dates..."
+              : dateAvailability && !dateAvailability.available
+                ? "Unavailable for selected dates"
+                : dateAvailability
+                  ? "Available for selected dates"
+                  : isOutOfStock
+                    ? "Out of stock"
+                    : "Select dates to confirm"}
+        </strong>
       </p>
       <p className="product-detail-availability">
-        Remaining: <strong>{remainingInventory}</strong>
+        Remaining: <strong>{dateAvailability?.quantityAvailable ?? remainingInventory}</strong>
       </p>
       <p className="product-detail-price-emphasis">
         Price: <strong>RS {product.rentalPricePerDay.toLocaleString("en-IN")}/night</strong>
@@ -570,7 +651,7 @@ function JewelleryDetailActions({
           className="product-detail-secondary-button"
           onPointerDown={handleJewelleryAddToCart}
           onClick={handleJewelleryAddToCart}
-          disabled={product.isMock || isOutOfStock}
+          disabled={product.isMock || isOutOfStock || dateAvailability?.available === false || checkingAvailability}
         >
           Add to Cart
         </button>
@@ -579,7 +660,7 @@ function JewelleryDetailActions({
           className="product-detail-primary-button"
           onPointerDown={handleJewelleryBookNow}
           onClick={handleJewelleryBookNow}
-          disabled={product.isMock || isOutOfStock}
+          disabled={product.isMock || isOutOfStock || dateAvailability?.available === false || checkingAvailability}
         >
           Book Now
         </button>

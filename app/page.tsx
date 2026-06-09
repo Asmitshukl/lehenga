@@ -141,7 +141,7 @@ export default function Home() {
       {error ? <CatalogError message={error} onRetry={() => setRetrySignal((value) => value + 1)} /> : null}
 
       {!loading && !error ? (
-        <ProductSection id="categories" title="Latest Drop" href="/shop-all" products={latestDrop} />
+        <ProductSection id="categories" title="Featured Collection" href="/shop-all" products={latestDrop} />
       ) : null}
 
       {!loading && !error ? categories.map((category, index) => (
