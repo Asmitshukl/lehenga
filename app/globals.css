@@ -530,6 +530,14 @@ button {
   min-width: 0;
 }
 
+.product-card-sku {
+  color: #76675d;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .product-card-body h3 {
   margin: 0;
   font-size: 15px;

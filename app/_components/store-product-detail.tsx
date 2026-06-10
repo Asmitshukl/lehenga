@@ -87,6 +87,7 @@ export function StoreProductDetail({
           <div className="product-detail-copy">
             <div className="product-detail-copy-inner">
               <h1>{product.name}</h1>
+              <p className="product-detail-kicker">SKU: {product.sku}</p>
               {averageRating ? (
                 <Link href="#product-reviews" className="product-detail-review-summary">
                   <strong>{averageRating.toFixed(1)} / 5</strong>

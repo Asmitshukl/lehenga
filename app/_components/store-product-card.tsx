@@ -33,6 +33,7 @@ export function StoreProductCard({ product }: { product: StoreProduct }) {
       <div className="product-card-body">
         <div className="product-card-copy">
           <h3>{product.name}</h3>
+          <p className="product-card-sku">SKU: {product.sku}</p>
           <p>RS {product.rentalPricePerDay.toLocaleString("en-IN")}/night</p>
           <p className={`product-card-stock${isOutOfStock ? " is-out" : ""}`}>
             {isOutOfStock ? "Out of stock" : `${remainingInventory} left`}

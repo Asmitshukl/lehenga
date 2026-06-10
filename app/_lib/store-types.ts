@@ -38,6 +38,7 @@ export type StoreProduct = {
   slug: string;
   kind: ProductType;
   name: string;
+  sku: string;
   createdAt?: string;
   rentalPricePerDay: number;
   shortDescription?: string;
@@ -79,6 +80,7 @@ export type CartItem = {
   kind: ProductType;
   slug: string;
   name: string;
+  sku?: string;
   image: string | StaticImageData;
   rentalPricePerDay: number;
   securityDeposit?: number;

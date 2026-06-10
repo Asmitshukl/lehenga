@@ -123,6 +123,7 @@ export default function CartPage() {
                       </div>
                       <div className="cart-item-copy">
                         <h3>{item.name}</h3>
+                        {item.sku ? <p className="product-card-sku">SKU: {item.sku}</p> : null}
                         <p>RS {item.rentalPricePerDay.toLocaleString("en-IN")}/night</p>
                         {item.securityDeposit ? <p>Deposit: RS {item.securityDeposit.toLocaleString("en-IN")}</p> : null}
                         {item.availableSizes.length > 1 ? (

@@ -47,6 +47,7 @@ type ApiLehenga = {
   id: string;
   slug: string;
   name: string;
+  sku: string;
   createdAt: string;
   shortDescription?: string | null;
   description?: string | null;
@@ -82,6 +83,7 @@ type ApiJewellery = {
   id: string;
   slug: string;
   name: string;
+  sku: string;
   createdAt: string;
   shortDescription?: string | null;
   description?: string | null;
@@ -276,6 +278,7 @@ export function normalizeLehenga(item: ApiLehenga): StoreProduct {
     slug: item.slug,
     kind: "LEHENGA",
     name: item.name,
+    sku: item.sku,
     createdAt: item.createdAt,
     rentalPricePerDay: Number(item.rentalPricePerDay),
     shortDescription: item.shortDescription ?? undefined,
@@ -314,6 +317,7 @@ export function normalizeJewellery(item: ApiJewellery): StoreProduct {
     slug: item.slug,
     kind: "JEWELLERY",
     name: item.name,
+    sku: item.sku,
     createdAt: item.createdAt,
     rentalPricePerDay: Number(item.rentalPricePerDay),
     shortDescription: item.shortDescription ?? undefined,
@@ -433,7 +437,7 @@ export async function fetchFeaturedCategories(limit?: number): Promise<StoreCate
 }
 
 export async function fetchLatestProductsOrThrow(limit = 4): Promise<StoreProduct[]> {
-  const lehengas = await storeRequest<ApiLehenga[]>("/lehengas?featured=true");
+  const lehengas = await storeRequest<ApiLehenga[]>("/lehengas");
 
   return lehengas
     .map(normalizeLehenga)
@@ -444,6 +448,17 @@ export async function fetchLatestProductsOrThrow(limit = 4): Promise<StoreProduc
       return rightTime - leftTime;
     })
     .slice(0, limit);
+}
+
+export async function fetchFeaturedLehengasOrThrow(limit?: number): Promise<StoreProduct[]> {
+  const lehengas = await storeRequest<ApiLehenga[]>("/lehengas?featured=true");
+  const products = lehengas.map(normalizeLehenga);
+
+  return limit ? products.slice(0, limit) : products;
+}
+
+export async function fetchFeaturedLehengas(limit?: number): Promise<StoreProduct[]> {
+  return fetchFeaturedLehengasOrThrow(limit).catch(() => []);
 }
 
 export async function fetchProductAvailability(input: {

@@ -179,6 +179,7 @@ function CheckoutItemCard({ item, allowDateEdit, onDateChange }: { item: CartIte
         <div className="checkout-item-head">
           <div>
             <h3>{item.name}</h3>
+            {item.sku ? <p className="product-card-sku">SKU: {item.sku}</p> : null}
             <p>{item.kind === "JEWELLERY" ? "Jewellery" : item.selectedSizeLabel ?? "Lehenga"}</p>
           </div>
           <strong>{formatMoney(item.rentalPricePerDay * item.quantity)}</strong>

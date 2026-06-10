@@ -10,7 +10,11 @@ import { StoreFaqSection, StorePromoBanner } from "@/app/_components/store-marke
 import { SiteFooter } from "@/app/ui/site-footer";
 import { SiteHeader } from "@/app/ui/site-header";
 import { StoreProductCard } from "./_components/store-product-card";
-import { fetchFeaturedCategoriesOrThrow, fetchLatestProductsOrThrow } from "./_lib/store-api";
+import {
+  fetchFeaturedCategoriesOrThrow,
+  fetchFeaturedLehengasOrThrow,
+  fetchLatestProductsOrThrow,
+} from "./_lib/store-api";
 import type { StoreCategory, StoreProduct } from "./_lib/store-types";
 
 function ProductSection({
@@ -61,6 +65,7 @@ function getLatestSectionProducts(products: StoreProduct[], limit = 4) {
 
 export default function Home() {
   const [latestDrop, setLatestDrop] = useState<StoreProduct[]>([]);
+  const [featuredLehengas, setFeaturedLehengas] = useState<StoreProduct[]>([]);
   const [categories, setCategories] = useState<StoreCategory[]>([]);
   const [menuOpenSignal, setMenuOpenSignal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -75,13 +80,15 @@ export default function Home() {
       setError(null);
 
       try {
-        const [liveLatestDrop, featuredCategories] = await Promise.all([
+        const [liveLatestDrop, storefrontFeaturedLehengas, featuredCategories] = await Promise.all([
           fetchLatestProductsOrThrow(4),
+          fetchFeaturedLehengasOrThrow(8),
           fetchFeaturedCategoriesOrThrow(5),
         ]);
 
         if (!cancelled) {
           setLatestDrop(liveLatestDrop);
+          setFeaturedLehengas(storefrontFeaturedLehengas);
           setCategories(featuredCategories);
         }
       } catch (reason) {
@@ -141,7 +148,11 @@ export default function Home() {
       {error ? <CatalogError message={error} onRetry={() => setRetrySignal((value) => value + 1)} /> : null}
 
       {!loading && !error ? (
-        <ProductSection id="categories" title="Featured Collection" href="/shop-all" products={latestDrop} />
+        <ProductSection id="latest-drop" title="Latest Drop" href="/shop-all" products={latestDrop} />
+      ) : null}
+
+      {!loading && !error ? (
+        <ProductSection id="featured-collection" title="Featured Collection" href="/shop-all" products={featuredLehengas} />
       ) : null}
 
       {!loading && !error ? categories.map((category, index) => (
