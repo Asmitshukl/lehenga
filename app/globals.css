@@ -551,6 +551,19 @@ button {
   font-size: 14px;
 }
 
+.product-discount-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  background: #fbf1e8;
+  color: #8d3f22;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 4px 7px;
+}
+
 .product-card-body button {
   margin-top: 0;
   border: 0;
@@ -837,6 +850,11 @@ button {
 
 .product-detail-price-emphasis {
   font-size: 22px;
+}
+
+.product-detail-price-emphasis .product-discount-badge {
+  margin-left: 10px;
+  vertical-align: middle;
 }
 
 .product-detail-button-row {

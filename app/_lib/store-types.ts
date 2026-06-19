@@ -41,6 +41,8 @@ export type StoreProduct = {
   sku: string;
   createdAt?: string;
   rentalPricePerDay: number;
+  rentalPriceBeforeDiscount?: number;
+  discountPercent?: number;
   shortDescription?: string;
   description?: string;
   categoryId?: string;

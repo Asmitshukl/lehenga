@@ -56,6 +56,7 @@ type ApiLehenga = {
   fabric?: string | null;
   occasion?: string | null;
   rentalPricePerDay: string | number;
+  discountPercent?: string | number | null;
   securityDeposit?: string | number | null;
   originalPrice?: string | number | null;
   minimumRentalDays?: number | null;
@@ -272,6 +273,12 @@ export function normalizeLehenga(item: ApiLehenga): StoreProduct {
     url: image.imageUrl,
     altText: image.altText ?? undefined,
   }));
+  const rentalPriceBeforeDiscount = Number(item.rentalPricePerDay);
+  const discountPercent = Number(item.discountPercent ?? 0);
+  const rentalPricePerDay = Math.max(
+    0,
+    rentalPriceBeforeDiscount - rentalPriceBeforeDiscount * (discountPercent / 100),
+  );
 
   return {
     id: item.id,
@@ -280,7 +287,9 @@ export function normalizeLehenga(item: ApiLehenga): StoreProduct {
     name: item.name,
     sku: item.sku,
     createdAt: item.createdAt,
-    rentalPricePerDay: Number(item.rentalPricePerDay),
+    rentalPricePerDay,
+    rentalPriceBeforeDiscount,
+    discountPercent,
     shortDescription: item.shortDescription ?? undefined,
     description: item.description ?? undefined,
     categoryId: item.category?.id,

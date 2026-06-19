@@ -455,6 +455,9 @@ export function ProductDetailActions({ product }: { product: StoreProduct }) {
         </p>
         <p className="product-detail-price-emphasis">
           Price: <strong>RS {product.rentalPricePerDay.toLocaleString("en-IN")}/night</strong>
+          {product.discountPercent && product.discountPercent > 0 ? (
+            <span className="product-discount-badge">{product.discountPercent}% off</span>
+          ) : null}
         </p>
         {product.securityDeposit ? (
           <p className="product-detail-availability">
@@ -640,6 +643,9 @@ function JewelleryDetailActions({
       </p>
       <p className="product-detail-price-emphasis">
         Price: <strong>RS {product.rentalPricePerDay.toLocaleString("en-IN")}/night</strong>
+        {product.discountPercent && product.discountPercent > 0 ? (
+          <span className="product-discount-badge">{product.discountPercent}% off</span>
+        ) : null}
       </p>
       {product.securityDeposit ? (
         <p className="product-detail-availability">
