@@ -7,6 +7,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Lehenga",
   description: "Luxury lehenga rental storefront",
+  icons: {
+    icon: "/hnK8aSlqZBv5pOIXU5O0NeeQfQs.png",
+    apple: "/hnK8aSlqZBv5pOIXU5O0NeeQfQs.png",
+  },
 };
 
 export default function RootLayout({
