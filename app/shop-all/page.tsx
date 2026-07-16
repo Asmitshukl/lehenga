@@ -4,15 +4,15 @@ import { useEffect, useState } from "react";
 
 import { StoreBreadcrumb } from "@/app/_components/store-breadcrumb";
 import { CatalogError, CatalogLoader } from "@/app/_components/catalog-request-state";
-import { StoreProductCard } from "@/app/_components/store-product-card";
+import { CategoryProductSections } from "@/app/_components/category-product-sections";
 import { SiteFooter } from "@/app/ui/site-footer";
 import { SiteHeader } from "@/app/ui/site-header";
 
-import { fetchLiveProductsOrThrow } from "../_lib/store-api";
-import type { StoreProduct } from "../_lib/store-types";
+import { fetchCategoriesOrThrow } from "../_lib/store-api";
+import type { StoreCategory } from "../_lib/store-types";
 
 export default function ShopAllPage() {
-  const [products, setProducts] = useState<StoreProduct[]>([]);
+  const [categories, setCategories] = useState<StoreCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retrySignal, setRetrySignal] = useState(0);
@@ -25,10 +25,10 @@ export default function ShopAllPage() {
       setError(null);
 
       try {
-        const liveProducts = await fetchLiveProductsOrThrow();
+        const liveCategories = await fetchCategoriesOrThrow();
 
         if (!cancelled) {
-          setProducts(liveProducts);
+          setCategories(liveCategories);
         }
       } catch (reason) {
         if (!cancelled) {
@@ -58,15 +58,9 @@ export default function ShopAllPage() {
         {loading ? <CatalogLoader label="Loading lehengas" /> : null}
         {error ? <CatalogError message={error} onRetry={() => setRetrySignal((value) => value + 1)} /> : null}
 
-        {!loading && !error ? <div className="product-grid-shell">
-          <div className="product-grid">
-            {products.map((product, idx) => (
-              <StoreProductCard key={`${product.kind}-${product.id}-${idx}`} product={product} />
-            ))}
-          </div>
-        </div> : null}
+        {!loading && !error ? <CategoryProductSections categories={categories} /> : null}
 
-        {!loading && !error && products.length === 0 ? (
+        {!loading && !error && categories.length === 0 ? (
           <div className="cart-empty-state">
             <p>No lehengas are available right now.</p>
           </div>

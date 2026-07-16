@@ -446,17 +446,8 @@ export async function fetchFeaturedCategories(limit?: number): Promise<StoreCate
 }
 
 export async function fetchLatestProductsOrThrow(limit = 4): Promise<StoreProduct[]> {
-  const lehengas = await storeRequest<ApiLehenga[]>("/lehengas");
-
-  return lehengas
-    .map(normalizeLehenga)
-    .sort((left, right) => {
-      const leftTime = left.createdAt ? new Date(left.createdAt).getTime() : 0;
-      const rightTime = right.createdAt ? new Date(right.createdAt).getTime() : 0;
-
-      return rightTime - leftTime;
-    })
-    .slice(0, limit);
+  const lehengas = await storeRequest<ApiLehenga[]>("/lehengas?latest=true");
+  return lehengas.map(normalizeLehenga).slice(0, limit);
 }
 
 export async function fetchFeaturedLehengasOrThrow(limit?: number): Promise<StoreProduct[]> {

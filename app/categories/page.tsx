@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { StoreBreadcrumb } from "@/app/_components/store-breadcrumb";
 import { CatalogError, CatalogLoader } from "@/app/_components/catalog-request-state";
-import { StoreProductCard } from "@/app/_components/store-product-card";
+import { CategoryProductSections } from "@/app/_components/category-product-sections";
 import { fetchCategoriesOrThrow } from "@/app/_lib/store-api";
 import type { StoreCategory } from "@/app/_lib/store-types";
 import { SiteFooter } from "@/app/ui/site-footer";
@@ -56,39 +56,7 @@ export default function CategoriesPage() {
         {loading ? <CatalogLoader label="Loading categories" /> : null}
         {error ? <CatalogError message={error} onRetry={() => setRetrySignal((value) => value + 1)} /> : null}
 
-        {!loading && !error ? categories.map((category) => {
-          const lehengaCount = category.products.filter((product) => product.kind === "LEHENGA").length;
-          const jewelleryCount = category.products.filter((product) => product.kind === "JEWELLERY").length;
-
-          return (
-            <section key={category.id} className="catalog-section">
-              <div className="section-row">
-                <div>
-                  <h2>{category.name}</h2>
-                  <p>
-                    {lehengaCount} lehenga style(s) · {jewelleryCount} jewellery style(s)
-                    {category.isFeatured ? " · Featured category" : ""}
-                  </p>
-                </div>
-                <span>{category.products.length} styles</span>
-              </div>
-
-              {category.products.length > 0 ? (
-                <div className="product-grid-shell">
-                  <div className="product-grid">
-                    {category.products.map((product) => (
-                      <StoreProductCard key={`${category.id}-${product.kind}-${product.id}`} product={product} />
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="cart-empty-state">
-                  <p>No products in this category yet.</p>
-                </div>
-              )}
-            </section>
-          );
-        }) : null}
+        {!loading && !error ? <CategoryProductSections categories={categories} /> : null}
 
         {!loading && !error && categories.length === 0 ? (
           <section className="catalog-section">

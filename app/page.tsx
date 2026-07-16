@@ -10,6 +10,7 @@ import { StoreFaqSection, StorePromoBanner } from "@/app/_components/store-marke
 import { SiteFooter } from "@/app/ui/site-footer";
 import { SiteHeader } from "@/app/ui/site-header";
 import { StoreProductCard } from "./_components/store-product-card";
+import { InstagramCarousel } from "./_components/instagram-carousel";
 import {
   fetchFeaturedCategoriesOrThrow,
   fetchFeaturedLehengasOrThrow,
@@ -166,6 +167,7 @@ export default function Home() {
       )) : null}
 
       <StorePromoBanner />
+      <InstagramCarousel />
       <StoreFaqSection />
 
       <SiteFooter />

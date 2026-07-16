@@ -14,6 +14,7 @@ const navigationLinks = [
   { label: "New in", href: "/#home" },
   { label: "Categories", href: "/categories" },
   { label: "Shop all", href: "/shop-all" },
+  { label: "Khadi", href: "/khadi" },
 ];
 
 type MenuItem = {
@@ -83,11 +84,15 @@ function MenuIcon() {
   );
 }
 
-function MenuPanel() {
+function MenuPanel({ categories }: { categories: Array<{ name: string; slug: string }> }) {
   return (
     <section id="lehenga-mega-menu" className="mega-menu" aria-label="Categories menu">
       <div className="mega-menu-columns">
-        {menuColumns.map((column) => (
+        <div className="mega-menu-column"><h3>Shop by category</h3><ul>
+          <li><Link href="/shop-all">New arrival</Link></li>
+          {categories.map((category) => <li key={category.slug}><Link href={`/categories#category-${category.slug}`}>{category.name}</Link></li>)}
+        </ul></div>
+        {menuColumns.slice(1, 2).map((column) => (
           <div key={column.title || "categories"} className="mega-menu-column">
             {column.title ? <h3>{column.title}</h3> : null}
             <ul>
@@ -127,6 +132,9 @@ export function SiteHeader({
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [categories, setCategories] = useState<Array<{ name: string; slug: string }>>([]);
+
+  useEffect(() => { void import("../_lib/store-api").then(({ fetchCategories }) => fetchCategories()).then((items) => setCategories(items.map(({ name, slug }) => ({ name, slug })))); }, []);
 
   const openMenu = useCallback(() => setIsMenuOpen(true), []);
   const closeMenu = useCallback(() => setIsMenuOpen(false), []);
@@ -216,7 +224,7 @@ export function SiteHeader({
         <div className="mega-menu-backdrop" role="presentation" onClick={closeMenu}>
           <div className="mega-menu-modal" role="dialog" aria-modal="true">
             <div className="mega-menu-modal-inner" onClick={(event) => event.stopPropagation()}>
-              <MenuPanel />
+              <MenuPanel categories={categories} />
             </div>
           </div>
         </div>
